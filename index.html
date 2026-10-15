@@ -135,7 +135,10 @@
     .message-head { padding-bottom: 24px; margin-bottom: 30px; border-bottom: 1px solid var(--line); }
     .message-head .eyebrow { margin-bottom: 10px; }
     .message-head h1 { font-size: 38px; letter-spacing: -.025em; }
-    .message-meta { display: flex; flex-wrap: wrap; gap: 6px 20px; margin-top: 14px; font: 12px/1.8 var(--mono); color: var(--muted); }
+    .message-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 20px; margin-top: 14px; font: 12px/1.8 var(--mono); color: var(--muted); }
+    .copy-message { min-width: 14em; margin-left: auto; font-family: var(--sans); }
+    .copy-message[aria-busy="true"] { cursor: wait; }
+    .copy-message-status { flex-basis: 100%; color: var(--error); }
     .body { font: 400 22px/1.65 var(--serif); overflow-wrap: anywhere; }
     .body > :first-child { margin-top: 0; }
     .body p { margin: 0 0 1.1em; }
@@ -224,6 +227,7 @@
       .message-head { padding-bottom: 20px; margin-bottom: 24px; }
       .message-head h1 { font-size: 34px; }
       .message-meta { gap: 4px 16px; font-size: 11px; }
+      .copy-message { width: 100%; margin-top: 8px; margin-left: 0; }
       .body { font-size: 21px; line-height: 1.65; }
       .body > h2:first-child { font-size: 30px; }
       .body h2 { font-size: 26px; }
@@ -263,6 +267,12 @@
       .button:hover:not(:disabled):not(:active) { transform: translateY(-1px); box-shadow: 0 3px 8px #0003; }
       .row:hover .row-arrow, .source:hover svg { transform: translateX(2px); }
       .back:hover svg { transform: translateX(-2px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+      .button:hover:not(:disabled):not(:active), .button:not(:disabled):active,
+      .adjacent a[href]:active, .toc-toggle:active, .copy-code:not(:disabled):active,
+      .row:hover .row-arrow, .source:hover svg, .back:hover svg { transform: none; }
     }
   </style>
 </head>
@@ -597,7 +607,7 @@
           closeToc(); setCurrentSection(index);
           heading.focus({ preventScroll: true });
           // This is an in-reader action, not a hash route or a new history entry.
-          heading.scrollIntoView({ block: "start", behavior: "smooth" });
+          heading.scrollIntoView({ block: "start", behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
         });
         const li = el("li"); li.append(button); $("#toc-list").append(li);
         return button;
@@ -740,6 +750,23 @@
         $("#message-meta").replaceChildren(time);
         const words = message.text.split(/\s+/).filter(Boolean).length;
         if (words > 120) $("#message-meta").append(el("span", "", `Yaklaşık ${Math.max(1, Math.ceil(words / 200))} dk okuma`));
+        const copy = el("button", "button copy-message"), label = el("span", "", "Markdown kopyala"), status = el("span", "sr-only");
+        const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg"), use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        icon.setAttribute("viewBox", "0 0 256 256"); icon.setAttribute("aria-hidden", "true"); icon.setAttribute("focusable", "false");
+        use.setAttribute("href", "assets/icons.svg#copy"); icon.append(use); copy.append(icon, label);
+        copy.type = "button"; copy.setAttribute("aria-label", "Mesajı Markdown olarak kopyala"); status.setAttribute("role", "status");
+        copy.addEventListener("click", async () => {
+          if (copy.getAttribute("aria-busy") === "true") return;
+          copy.setAttribute("aria-busy", "true"); label.textContent = "Kopyalanıyor…"; status.textContent = "";
+          try {
+            if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+            await navigator.clipboard.writeText(`# [${message.agent}] (${fmtDate(message.at)}, ${fmtTime(message.at)})\n\n${message.text}`);
+            label.textContent = "Kopyalandı"; status.className = "sr-only"; status.textContent = "Mesaj Markdown olarak panoya kopyalandı.";
+          } catch {
+            label.textContent = "Tekrar dene"; status.className = "copy-message-status"; status.textContent = "Kopyalanamadı. Tarayıcının pano iznini kontrol edip tekrar dene.";
+          } finally { copy.removeAttribute("aria-busy"); }
+        });
+        $("#message-meta").append(copy, status);
         $("#body").replaceChildren(markdown(message.text || "(Boş mesaj)"));
         buildToc(message.id);
         $(".message-head").getAnimations().forEach(animation => {

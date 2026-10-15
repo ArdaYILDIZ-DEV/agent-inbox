@@ -10,22 +10,27 @@ const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const setup = script.slice(0, script.indexOf('    $("#toc-toggle").addEventListener'));
 
 class Node {
-  constructor(tag = '#fragment') { this.tag = tag; this.children = []; this.attributes = {}; }
+  constructor(tag = '#fragment') { this.tag = tag; this.children = []; this.attributes = {}; this.dataset = {}; this.listeners = {}; }
   append(...children) { this.children.push(...children); }
+  replaceChildren(...children) { this.children = children; }
   setAttribute(key, value) { this.attributes[key] = value; }
-  addEventListener() {}
+  getAttribute(key) { return this.attributes[key] ?? null; }
+  removeAttribute(key) { delete this.attributes[key]; }
+  addEventListener(type, listener) { this.listeners[type] = listener; }
+  querySelectorAll(selector) { return selector.split(/,\s*/).flatMap(tag => descendants(this, tag)); }
+  getAnimations() { return []; }
   get textContent() { return this.children.map(c => typeof c === 'string' ? c : c.textContent).join(''); }
   set textContent(value) { this.children = [String(value)]; }
 }
-function app({ fetch, storage = {} } = {}) {
+function app({ fetch, storage = {}, nodes = {}, navigator = {} } = {}) {
   const sandbox = {
-    document: { createElement: tag => new Node(tag), createDocumentFragment: () => new Node(), addEventListener() {} },
-    window: { addEventListener() {} }, history: {},
+    document: { createElement: tag => new Node(tag), createElementNS: (namespace, tag) => new Node(tag), createDocumentFragment: () => new Node(), querySelector: selector => nodes[selector], addEventListener() {} },
+    window: { addEventListener() {}, matchMedia: () => ({ matches: false }) }, history: {}, navigator,
     localStorage: { getItem: key => storage[key] ?? null, setItem() {} },
     location: { hash: '' }, fetch, URL, AbortController, setTimeout, clearTimeout
   };
   vm.createContext(sandbox);
-  vm.runInContext(setup + '\nglobalThis.api = { parseMessage, plain, summary, markdown, validItem, get, fetchRecent, commentsToItems, sortItems, dayLabel, cachedItems: items, read };', sandbox);
+  vm.runInContext(setup + '\nglobalThis.api = { parseMessage, plain, summary, markdown, validItem, get, fetchRecent, commentsToItems, sortItems, dayLabel, renderReader, cachedItems: items, read };', sandbox);
   return sandbox.api;
 }
 const json = value => JSON.parse(JSON.stringify(value));
@@ -50,7 +55,7 @@ test('design assets stay local, licensed and compatible with repository subpaths
     assert.ok(fs.readFileSync(path.join(__dirname, '../assets/licenses', name + '.txt'), 'utf8').length > 500);
   }
   const sprite = fs.readFileSync(path.join(__dirname, '../assets/icons.svg'), 'utf8');
-  for (const name of ['tray', 'arrow-up-right', 'arrow-clockwise', 'arrow-left', 'caret-left', 'caret-right']) {
+  for (const name of ['tray', 'arrow-up-right', 'arrow-clockwise', 'arrow-left', 'caret-left', 'caret-right', 'copy']) {
     assert.ok(sprite.includes('id="' + name + '"'), name);
   }
   assert.doesNotMatch(html, /https?:\/\/[^"'\s]+\.(?:woff2?|ttf)(?:["')]|$)/);
@@ -192,6 +197,81 @@ test('tasks use font-independent state markers and code has an accessible copy a
   assert.equal(copy.type, 'button');
   assert.equal(copy.attributes['aria-label'], 'Kod bloğunu kopyala');
   assert.equal(descendants(tree, 'code')[0].textContent, 'const text = "**düz metin**";');
+});
+function reader(navigator) {
+  const nodes = Object.fromEntries(['#newer', '#older', '#fnav', '#rstate', '#rmain', '#message-title', '#message-meta', '#body', '#toc', '#toc-toggle', '#toc-links', '#toc-list', '#toc-current', '.message-head', '#original'].map(selector => [selector, new Node('div')]));
+  nodes['#toc'].classList = { remove() {} };
+  const api = app({ nodes, navigator });
+  const show = message => {
+    api.cachedItems.push(message);
+    api.renderReader(String(message.id));
+    const meta = nodes['#message-meta'];
+    return { copy: descendants(meta, 'button')[0], status: descendants(meta, 'span').find(node => node.getAttribute('role') === 'status') };
+  };
+  return { api, show };
+}
+test('reader copies the agent, Turkish timestamp and untouched Markdown with accessible feedback', async () => {
+  const writes = [];
+  let finish;
+  const { show } = reader({ clipboard: { writeText: text => { writes.push(text); return new Promise(resolve => { finish = resolve; }); } } });
+  const message = { id: 1, agent: 'atheris', at: '2026-10-15T10:00:00Z', text: '**Notlar**\r\n\r\n- [x] Bitti\r\n\r\n```js\r\nconst x = "<ham>";\r\n```\r\n[Belge](https://example.com)  \n' };
+  const { copy, status } = show(message);
+  assert.ok(copy, 'message metadata includes a copy button');
+  assert.equal(copy.type, 'button');
+  assert.equal(copy.textContent, 'Markdown kopyala');
+  assert.equal(copy.getAttribute('aria-label'), 'Mesajı Markdown olarak kopyala');
+  assert.ok(status, 'copy feedback has a live status role');
+  const icon = descendants(copy, 'svg')[0];
+  assert.equal(icon.getAttribute('aria-hidden'), 'true');
+  assert.equal(icon.getAttribute('focusable'), 'false');
+  assert.equal(descendants(icon, 'use')[0].getAttribute('href'), 'assets/icons.svg#copy');
+  const pending = copy.listeners.click();
+  assert.equal(copy.getAttribute('aria-busy'), 'true');
+  assert.equal(copy.textContent, 'Kopyalanıyor…');
+  await copy.listeners.click();
+  assert.equal(writes.length, 1, 'ignore repeated clicks while copying');
+  const date = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(message.at));
+  const time = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(new Date(message.at));
+  assert.equal(writes[0], `# [atheris] (${date}, ${time})\n\n${message.text}`);
+  finish(); await pending;
+  assert.equal(copy.textContent, 'Kopyalandı');
+  assert.equal(descendants(copy, 'svg')[0], icon, 'feedback preserves the icon');
+  assert.equal(status.textContent, 'Mesaj Markdown olarak panoya kopyalandı.');
+  assert.equal(copy.getAttribute('aria-busy'), null);
+  const again = copy.listeners.click();
+  finish(); await again;
+  assert.equal(writes.length, 2);
+});
+test('reader copy follows message changes and preserves empty raw content', async () => {
+  const writes = [];
+  let finish;
+  const { show } = reader({ clipboard: { writeText: text => { writes.push(text); return new Promise(resolve => { finish = resolve; }); } } });
+  const first = show({ id: 1, agent: 'first', at: '2026-10-15T10:00:00Z', text: 'Eski mesaj' });
+  const pending = first.copy.listeners.click(), finishFirst = finish;
+  const second = show({ id: 2, agent: 'second', at: '2026-10-16T12:00:00Z', text: '' });
+  finishFirst(); await pending;
+  assert.equal(second.copy.textContent, 'Markdown kopyala');
+  assert.equal(second.status.textContent, '');
+  const next = second.copy.listeners.click();
+  finish(); await next;
+  assert.match(writes[1], /^# \[second\] \(/);
+  assert.ok(writes[1].endsWith(')\n\n'));
+  assert.doesNotMatch(writes[1], /Eski mesaj|Boş mesaj/);
+});
+test('reader reports unavailable or denied clipboard access and allows retry', async () => {
+  for (const navigator of [{}, { clipboard: { writeText: async () => { throw new Error('Permission denied'); } } }]) {
+    const { show } = reader(navigator);
+    const { copy, status } = show({ id: 1, agent: 'atheris', at: '2026-10-15T10:00:00Z', text: 'Not' });
+    await copy.listeners.click();
+    assert.equal(copy.textContent, 'Tekrar dene');
+    assert.match(status.textContent, /Kopyalanamadı/);
+    assert.notEqual(status.className, 'sr-only');
+    assert.equal(copy.getAttribute('aria-busy'), null);
+    navigator.clipboard = { writeText: async () => {} };
+    await copy.listeners.click();
+    assert.equal(copy.textContent, 'Kopyalandı');
+    assert.equal(status.className, 'sr-only');
+  }
 });
 test('inline code keeps Markdown markers literal', () => {
   const tree = app().markdown('`**kelime**` ve `https://example.com`');

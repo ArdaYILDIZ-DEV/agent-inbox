@@ -49,7 +49,7 @@ async function inspectEntry(locator) {
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_EXECUTABLE ? { executablePath: process.env.CHROMIUM_EXECUTABLE } : {}) });
   const errors = [];
   const url = `http://127.0.0.1:${server.address().port}/agent-inbox/`;
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: 'light', reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, colorScheme: 'light', reducedMotion: 'no-preference' });
   context.on('page', page => page.on('pageerror', error => errors.push(error.message)));
   let mode = 'normal', calls = [], version = 1;
   await context.route('https://api.github.com/**', async route => {
@@ -160,6 +160,34 @@ async function inspectEntry(locator) {
     await page.evaluate(() => { navigator.clipboard.writeText = async text => { window.copiedCode = text; }; });
     await page.locator('.copy-code').click();
     await page.waitForFunction(() => document.querySelector('.copy-code').textContent === 'Kopyalandı');
+    const markdownCopy = page.locator('.copy-message');
+    check(await markdownCopy.isVisible() && await markdownCopy.locator('svg[aria-hidden="true"] use').getAttribute('href') === 'assets/icons.svg#copy', 'Markdown copy keeps a visible label and decorative local Phosphor icon');
+    await markdownCopy.hover();
+    await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('.copy-message')).transform).f < -.9);
+    check(await markdownCopy.evaluate(n => getComputedStyle(n).transitionDuration.includes('0.18s')), 'Markdown copy shares the other buttons’ short hover animation');
+    await page.mouse.down();
+    await page.waitForFunction(() => {
+      const matrix = new DOMMatrix(getComputedStyle(document.querySelector('.copy-message')).transform);
+      return matrix.f > .9 && matrix.a < .99;
+    });
+    check(true, 'Markdown copy shares the restrained press feedback');
+    await page.mouse.up();
+    await page.waitForFunction(() => document.querySelector('.copy-message span').textContent === 'Kopyalandı');
+    check(await page.evaluate(source => {
+      const at = new Date(document.querySelector('#message-meta time').dateTime);
+      const date = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }).format(at);
+      const time = new Intl.DateTimeFormat('tr-TR', { hour: '2-digit', minute: '2-digit' }).format(at);
+      return window.copiedCode === `# [atheris] (${date}, ${time})\n\n${source}`;
+    }, rich.trim()), 'Markdown copy transfers the parsed message source unchanged, with agent and Turkish timestamp');
+    await markdownCopy.focus(); await page.keyboard.press('Enter');
+    check(await markdownCopy.evaluate(n => n === document.activeElement && n.matches(':focus-visible') && getComputedStyle(n).outlineStyle === 'solid'), 'keyboard copying preserves focus and its visible ring');
+    check(await page.locator('#message-meta [role="status"]').innerText() === 'Mesaj Markdown olarak panoya kopyalandı.', 'Markdown copy announces success in a live status region');
+    await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new DOMException('Denied', 'NotAllowedError'); }; });
+    await markdownCopy.click();
+    check(await page.locator('.copy-message-status').isVisible() && await markdownCopy.innerText() === 'Tekrar dene', 'denied Markdown clipboard access shows a visible retry message');
+    await page.evaluate(() => { navigator.clipboard.writeText = async text => { window.copiedCode = text; }; });
+    await markdownCopy.click();
+    check(!await page.locator('.copy-message-status').count() && await markdownCopy.innerText() === 'Kopyalandı', 'retry recovers and hides the clipboard error');
     check(await page.locator('.toc-item').count() === await page.locator('#body :is(h2,h3,h4,h5,h6)').count(), 'TOC includes every rendered heading, not code or raw HTML');
     check(await page.locator('#body [id]').evaluateAll(nodes => new Set(nodes.map(n => n.id)).size === nodes.length), 'repeated headings have unique targets');
     check(await page.locator('.toc-item').nth(1).innerText() === 'Kontroller', 'TOC labels exclude Markdown syntax and auxiliary link announcements');
@@ -186,6 +214,10 @@ async function inspectEntry(locator) {
     for (const width of [320, 360, 390, 540, 541, 768, 1024, 1279, 1280, 1440, 1920]) {
       await page.setViewportSize({ width, height: 844 });
       check(await page.evaluate(() => document.documentElement.scrollWidth === innerWidth), `reader reflows without page overflow at ${width}px`);
+      check(await markdownCopy.isVisible() && await markdownCopy.evaluate(n => {
+        const box = n.getBoundingClientRect(), label = n.querySelector('span');
+        return box.x >= -.5 && box.right <= innerWidth + .5 && n.offsetHeight >= 44 && getComputedStyle(label).display !== 'none';
+      }), `Markdown copy remains visible, labeled and touch-sized at ${width}px`);
       check((await page.locator('#rmain').boundingBox()).width === Math.min(720, width - (width <= 540 ? 40 : width <= 760 ? 48 : 80)), `reading width is preserved at ${width}px`);
     }
     await page.setViewportSize({ width: 390, height: 844 });
@@ -223,7 +255,19 @@ async function inspectEntry(locator) {
     await page.waitForFunction(id => Math.abs(document.getElementById(id).getBoundingClientRect().top - parseFloat(getComputedStyle(document.getElementById(id)).scrollMarginTop)) < 2, smoothId);
     check(await page.evaluate(() => location.hash) === routeHash, 'smooth scrolling reaches the section without changing the route');
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    check(await page.locator('#toc-toggle svg').evaluate(n => getComputedStyle(n).transitionDuration.includes('0.18s')), 'chevron timing stays consistent across system preferences');
+    check(await page.locator('#toc-toggle svg').evaluate(n => getComputedStyle(n).transitionDuration === '0s') &&
+      await page.locator('.message-head').evaluate(n => getComputedStyle(n).animationName === 'none') &&
+      await markdownCopy.evaluate(n => getComputedStyle(n).transitionDuration === '0s'), 'reduced motion disables header, chevron and button animations');
+    await markdownCopy.hover();
+    check(await markdownCopy.evaluate(n => getComputedStyle(n).transform === 'none'), 'reduced-motion hover keeps the copy control stationary');
+    await page.locator('#toc-toggle').click();
+    const reducedTarget = page.locator('.toc-item').nth(2);
+    await page.evaluate(() => {
+      const original = Element.prototype.scrollIntoView;
+      Element.prototype.scrollIntoView = function(options) { window.lastScrollBehavior = options.behavior; return original.call(this, options); };
+    });
+    await reducedTarget.click();
+    check(await page.evaluate(() => window.lastScrollBehavior === 'instant'), 'reduced motion uses instant section navigation instead of smooth scrolling');
     if (process.env.SCREENSHOT_DIR) {
       await page.evaluate(() => scrollTo(0, 0));
       await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'reader-mobile.png') });
@@ -288,6 +332,19 @@ async function inspectEntry(locator) {
     await direct.goto(`${url}#/m/999`); await direct.waitForSelector('#rmain:visible');
     check(await direct.locator('#message-title').innerText() === 'archive', 'old deep links resolve independently of the latest twelve');
     check(!await direct.locator('#toc').isVisible() && await direct.locator('.toc-item').count() === 0, 'heading-free messages do not show an empty contents area');
+    for (const width of [320, 360, 390, 540, 541, 768, 1440]) {
+      await direct.setViewportSize({ width, height: 900 });
+      await direct.goto(`${url}#/m/999`); await direct.waitForSelector('.copy-message');
+      await direct.evaluate(() => document.fonts.ready);
+      await direct.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => new Promise(resolve => { window.finishMarkdownCopy = resolve; }) } }));
+      const copy = direct.locator('.copy-message'), initialWidth = await copy.evaluate(n => n.offsetWidth);
+      const initialHeight = await direct.locator('.message-head').evaluate(n => n.offsetHeight);
+      await copy.click();
+      check(await copy.getAttribute('aria-busy') === 'true' && await copy.evaluate(n => n.offsetWidth) === initialWidth, `pending Markdown copy reserves its width at ${width}px`);
+      await direct.evaluate(() => window.finishMarkdownCopy());
+      await direct.waitForFunction(() => document.querySelector('.copy-message span').textContent === 'Kopyalandı');
+      check(await copy.evaluate(n => n.offsetWidth) === initialWidth && await direct.locator('.message-head').evaluate(n => n.offsetHeight) === initialHeight, `copy feedback causes no header reflow at ${width}px`);
+    }
     await direct.goto(`${url}#/m/1030`); await direct.waitForSelector('.toc-item');
     await direct.goto(`${url}#/m/998`); await direct.waitForSelector('#rstate button');
     check((await direct.locator('#rstate').innerText()).includes('Mesaj açılamadı'), 'comments belonging to another issue are rejected');
@@ -332,8 +389,13 @@ async function inspectEntry(locator) {
     const phone = await touch.newPage(); phone.on('pageerror', error => errors.push(error.message));
     await phone.goto(`${url}#/m/1030`); await phone.waitForSelector('#toc-toggle:visible');
     check(await phone.locator('#rmain').evaluate(n => n === document.activeElement && getComputedStyle(n).outlineStyle === 'none'), 'fresh touch-device deep links do not acquire a gold article frame');
+    await phone.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copiedMarkdown = text; } } }));
     for (const width of [320, 390, 430]) {
       await phone.setViewportSize({ width, height: 844 });
+      await phone.locator('.copy-message').tap();
+      check(await phone.locator('.copy-message span').innerText() === 'Kopyalandı' &&
+        await phone.evaluate(source => window.copiedMarkdown.endsWith('\n\n' + source), rich.trim()), `Markdown copy works by touch at ${width}px`);
+      check(await phone.locator('.copy-message').evaluate(n => n.getBoundingClientRect().width === document.querySelector('#message-meta').getBoundingClientRect().width), `mobile Markdown copy uses the available width at ${width}px`);
       await phone.locator('#toc-toggle').tap();
       check(await phone.locator('#toc-toggle').getAttribute('aria-expanded') === 'true' && await phone.evaluate(() => document.documentElement.scrollWidth === innerWidth), `touch contents open without overflow at ${width}px`);
       const section = phone.locator('.toc-item').nth(8), id = await section.getAttribute('aria-controls');
