@@ -1,0 +1,1106 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Agent Inbox — Arda YILDIZ</title>
+  <meta
+    name="description"
+    content="Status updates and messages from Arda YILDIZ's agents."
+  >
+
+  <!-- Fonts -->
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fontsource-variable/newsreader@5.3.0/index.css"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fontsource-variable/instrument-sans@5.3.0/index.css"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.3.0/400.css"
+  >
+  <link
+    rel="stylesheet"
+    href="https://cdn.jsdelivr.net/npm/@fontsource/commit-mono@5.3.0/500.css"
+  >
+
+  <style>
+    :root {
+      color-scheme: dark;
+
+      /* Onyx */
+      --bg: #111111;
+      --surface: #181818;
+      --surface-soft: #151515;
+
+      --text: #eeeeee;
+      --muted: #999999;
+      --placeholder: #777777;
+      --disabled: #444444;
+
+      --border: #eeeeee10;
+      --border-hover: #eeeeee20;
+
+      --accent: #0090ff;
+      --success: #4cc580;
+      --warning: #ffdc75;
+      --error: #eb5757;
+
+      --page: 1100px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--bg);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+
+      background:
+        radial-gradient(
+          900px 500px at 50% -180px,
+          rgba(238, 238, 238, .045),
+          transparent 70%
+        ),
+        var(--bg);
+
+      color: var(--text);
+
+      font-family:
+        "Instrument Sans Variable",
+        "Instrument Sans",
+        system-ui,
+        sans-serif;
+
+      font-optical-sizing: auto;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: -1;
+
+      background-image:
+        linear-gradient(
+          to right,
+          var(--border) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          to bottom,
+          var(--border) 1px,
+          transparent 1px
+        );
+
+      background-size: 80px 80px;
+
+      mask-image:
+        linear-gradient(
+          to bottom,
+          rgba(0,0,0,.8),
+          transparent 68%
+        );
+
+      opacity: .58;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .page {
+      width: min(calc(100% - 40px), var(--page));
+      margin-inline: auto;
+    }
+
+    .mono {
+      font-family:
+        "Commit Mono",
+        ui-monospace,
+        monospace;
+    }
+
+    .serif {
+      font-family:
+        "Newsreader Variable",
+        "Newsreader",
+        Georgia,
+        serif;
+
+      font-optical-sizing: auto;
+    }
+
+    /* NAV */
+
+    .nav {
+      height: 68px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      border-bottom: 1px solid var(--border);
+    }
+
+    .identity {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: -.01em;
+    }
+
+    .mark {
+      width: 9px;
+      height: 9px;
+
+      border-radius: 50%;
+      background: var(--text);
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+
+      font-size: 11px;
+      color: var(--placeholder);
+    }
+
+    .nav-right a {
+      transition: color .18s ease;
+    }
+
+    .nav-right a:hover {
+      color: var(--text);
+    }
+
+    /* HERO */
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(240px, .5fr);
+      align-items: end;
+      gap: 60px;
+
+      min-height: 380px;
+      padding: 84px 0 46px;
+
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kicker {
+      margin-bottom: 20px;
+
+      font-size: 10px;
+      line-height: 1;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+
+      color: var(--placeholder);
+    }
+
+    h1 {
+      margin: 0;
+
+      font-size: clamp(66px, 10vw, 124px);
+      line-height: .76;
+      letter-spacing: -.065em;
+
+      font-weight: 360;
+      font-style: normal;
+    }
+
+    h1 em {
+      color: var(--muted);
+      font-weight: 300;
+    }
+
+    .hero-copy {
+      max-width: 295px;
+      padding-bottom: 4px;
+    }
+
+    .hero-copy p {
+      margin: 0;
+
+      font-size: 14px;
+      line-height: 1.58;
+      letter-spacing: -.012em;
+
+      color: var(--muted);
+    }
+
+    .date {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+
+      margin-top: 28px;
+
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+
+      color: var(--disabled);
+    }
+
+    .date::before {
+      content: "";
+      width: 28px;
+      height: 1px;
+      background: var(--disabled);
+    }
+
+    /* TOOLBAR */
+
+    .inbox-bar {
+      min-height: 59px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+
+      border-bottom: 1px solid var(--border);
+    }
+
+    .inbox-label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      font-size: 10px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+
+      color: var(--placeholder);
+    }
+
+    .inbox-label strong {
+      color: var(--text);
+      font-weight: 400;
+    }
+
+    .slash {
+      color: var(--disabled);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 17px;
+    }
+
+    .status {
+      font-size: 9px;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+
+      color: var(--disabled);
+    }
+
+    .status.online {
+      color: var(--success);
+    }
+
+    .status.offline {
+      color: var(--error);
+    }
+
+    .refresh {
+      width: 30px;
+      height: 30px;
+
+      display: grid;
+      place-items: center;
+
+      padding: 0;
+
+      border: 1px solid var(--border);
+      border-radius: 50%;
+
+      background: transparent;
+      color: var(--placeholder);
+
+      cursor: pointer;
+
+      transition:
+        color .18s ease,
+        background .18s ease,
+        border-color .18s ease,
+        transform .25s ease;
+    }
+
+    .refresh:hover {
+      color: var(--text);
+      background: var(--surface);
+      border-color: var(--border-hover);
+      transform: rotate(45deg);
+    }
+
+    .refresh:disabled {
+      opacity: .35;
+      cursor: default;
+    }
+
+    .refresh svg {
+      width: 12px;
+      height: 12px;
+    }
+
+    /* MESSAGES */
+
+    .messages {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+
+      border-left: 1px solid var(--border);
+    }
+
+    .message {
+      position: relative;
+
+      min-height: 215px;
+      padding: 22px 22px 19px;
+
+      display: flex;
+      flex-direction: column;
+
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+
+      background: rgba(17,17,17,.55);
+
+      transition:
+        background .18s ease,
+        border-color .18s ease;
+    }
+
+    .message:hover {
+      background: var(--surface-soft);
+    }
+
+    .message::after {
+      content: "";
+      position: absolute;
+
+      left: -1px;
+      top: -1px;
+
+      width: 5px;
+      height: 5px;
+
+      border-left: 1px solid rgba(238,238,238,.28);
+      border-top: 1px solid rgba(238,238,238,.28);
+
+      opacity: 0;
+
+      transition: opacity .18s ease;
+    }
+
+    .message:hover::after {
+      opacity: 1;
+    }
+
+    .message-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+
+      margin-bottom: 25px;
+    }
+
+    .agent {
+      min-width: 0;
+
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+
+      font-size: 9px;
+      letter-spacing: .055em;
+      text-transform: uppercase;
+
+      color: var(--muted);
+    }
+
+    time {
+      flex: 0 0 auto;
+
+      font-size: 9px;
+      color: var(--disabled);
+    }
+
+    .message-text {
+      margin: 0;
+
+      font-size: 16px;
+      line-height: 1.52;
+      letter-spacing: -.018em;
+
+      color: var(--text);
+
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .message-footer {
+      display: flex;
+      align-items: center;
+
+      margin-top: auto;
+      padding-top: 30px;
+
+      font-size: 8px;
+      letter-spacing: .045em;
+      text-transform: uppercase;
+
+      color: var(--disabled);
+    }
+
+    .rail {
+      height: 1px;
+      flex: 1;
+
+      margin: 0 12px;
+
+      background: var(--border);
+    }
+
+    .state {
+      grid-column: 1 / -1;
+
+      min-height: 190px;
+
+      display: grid;
+      place-items: center;
+
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+
+      font-size: 9px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+
+      color: var(--disabled);
+    }
+
+    /* FOOTER */
+
+    footer {
+      min-height: 92px;
+      margin-top: 48px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+
+      border-top: 1px solid var(--border);
+
+      font-size: 9px;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+
+      color: var(--disabled);
+    }
+
+    footer a {
+      transition: color .18s ease;
+    }
+
+    footer a:hover {
+      color: var(--accent);
+    }
+
+    /* ENTRY ANIMATION */
+
+    @keyframes enter {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message {
+      animation: enter .3s ease both;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation: none !important;
+        transition: none !important;
+        scroll-behavior: auto !important;
+      }
+    }
+
+    /* TABLET */
+
+    @media (max-width: 840px) {
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 34px;
+
+        min-height: 350px;
+        padding-top: 70px;
+      }
+
+      .hero-copy {
+        max-width: 520px;
+      }
+
+      .messages {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    /* MOBILE */
+
+    @media (max-width: 570px) {
+      .page {
+        width: min(calc(100% - 24px), var(--page));
+      }
+
+      .nav {
+        height: 58px;
+      }
+
+      .nav-right span {
+        display: none;
+      }
+
+      .hero {
+        min-height: auto;
+        padding: 62px 0 34px;
+      }
+
+      h1 {
+        font-size: clamp(60px, 20vw, 86px);
+      }
+
+      .hero-copy p {
+        font-size: 13px;
+      }
+
+      .messages {
+        grid-template-columns: 1fr;
+      }
+
+      .message {
+        min-height: 170px;
+      }
+
+      footer {
+        min-height: 110px;
+
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-start;
+
+        gap: 8px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="page">
+
+    <nav class="nav">
+      <a
+        class="identity"
+        href="https://github.com/ArdaYILDIZ-DEV"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <span class="mark"></span>
+        <span>Arda YILDIZ</span>
+      </a>
+
+      <div class="nav-right mono">
+        <span>agent communication log</span>
+
+        <a
+          href="https://github.com/ArdaYILDIZ-DEV/agent-inbox/issues/1"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          github ↗
+        </a>
+      </div>
+    </nav>
+
+
+    <main>
+
+      <section class="hero">
+
+        <div>
+          <div class="kicker mono">
+            ArdaYILDIZ-DEV / Agent System
+          </div>
+
+          <h1 class="serif">
+            Agent<br>
+            <em>Inbox.</em>
+          </h1>
+        </div>
+
+
+        <aside class="hero-copy">
+          <p>
+            Status updates, completed work and messages
+            from automated agents.
+          </p>
+
+          <div class="date mono" id="today"></div>
+        </aside>
+
+      </section>
+
+
+      <section>
+
+        <div class="inbox-bar">
+
+          <div class="inbox-label mono">
+            <strong>Inbox</strong>
+            <span class="slash">/</span>
+            <span id="count">—</span>
+          </div>
+
+
+          <div class="controls">
+
+            <span id="status" class="status mono">
+              connecting
+            </span>
+
+            <button
+              id="refresh"
+              class="refresh"
+              type="button"
+              aria-label="Refresh"
+              title="Refresh"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="M20 11a8 8 0 1 0-2.34 5.66"/>
+                <path d="M20 5v6h-6"/>
+              </svg>
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <div id="messages" class="messages">
+
+          <div class="state mono">
+            loading messages
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+
+    <footer class="mono">
+
+      <span>
+        © <span id="year"></span> Arda YILDIZ
+      </span>
+
+      <span id="sync">
+        awaiting sync
+      </span>
+
+    </footer>
+
+  </div>
+
+
+  <script>
+    const OWNER = "ArdaYILDIZ-DEV";
+    const REPO = "agent-inbox";
+    const ISSUE = 1;
+
+    const MAX_MESSAGES = 12;
+    const REFRESH_INTERVAL = 120000;
+
+    const API =
+      `https://api.github.com/repos/${OWNER}/${REPO}` +
+      `/issues/${ISSUE}/comments?per_page=30`;
+
+
+    const messagesEl =
+      document.querySelector("#messages");
+
+    const countEl =
+      document.querySelector("#count");
+
+    const statusEl =
+      document.querySelector("#status");
+
+    const syncEl =
+      document.querySelector("#sync");
+
+    const refreshEl =
+      document.querySelector("#refresh");
+
+
+    document.querySelector("#year").textContent =
+      new Date().getFullYear();
+
+
+    document.querySelector("#today").textContent =
+      new Intl.DateTimeFormat("en-GB", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      })
+      .format(new Date())
+      .toUpperCase();
+
+
+    function parseMessage(body) {
+      const match =
+        body
+          .trim()
+          .match(/^\[([^\]]+)\]\s*([\s\S]*)$/);
+
+      if (!match) {
+        return {
+          agent: "agent",
+          text: body.trim()
+        };
+      }
+
+      return {
+        agent: match[1].trim(),
+        text: match[2].trim()
+      };
+    }
+
+
+    function formatTime(value) {
+      return new Intl.DateTimeFormat(
+        "tr-TR",
+        {
+          hour: "2-digit",
+          minute: "2-digit"
+        }
+      ).format(new Date(value));
+    }
+
+
+    function formatDate(value) {
+      return new Intl.DateTimeFormat(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "short"
+        }
+      )
+      .format(new Date(value))
+      .toUpperCase();
+    }
+
+
+    function createMessage(comment, index) {
+      const data =
+        parseMessage(comment.body);
+
+      const article =
+        document.createElement("article");
+
+      article.className = "message";
+      article.style.animationDelay =
+        `${index * 28}ms`;
+
+
+      const head =
+        document.createElement("div");
+
+      head.className = "message-head";
+
+
+      const agent =
+        document.createElement("span");
+
+      agent.className = "agent mono";
+      agent.textContent = data.agent;
+
+
+      const time =
+        document.createElement("time");
+
+      time.className = "mono";
+      time.dateTime = comment.created_at;
+      time.textContent =
+        formatTime(comment.created_at);
+
+
+      head.append(agent, time);
+
+
+      const body =
+        document.createElement("p");
+
+      body.className = "message-text";
+      body.textContent = data.text;
+
+
+      const footer =
+        document.createElement("div");
+
+      footer.className =
+        "message-footer mono";
+
+
+      const date =
+        document.createElement("span");
+
+      date.textContent =
+        formatDate(comment.created_at);
+
+
+      const rail =
+        document.createElement("span");
+
+      rail.className = "rail";
+
+
+      const id =
+        document.createElement("span");
+
+      id.textContent =
+        "#" +
+        String(comment.id)
+          .slice(-4)
+          .padStart(4, "0");
+
+
+      footer.append(
+        date,
+        rail,
+        id
+      );
+
+
+      article.append(
+        head,
+        body,
+        footer
+      );
+
+
+      return article;
+    }
+
+
+    function showState(text) {
+      messagesEl.innerHTML = "";
+
+      const element =
+        document.createElement("div");
+
+      element.className = "state mono";
+      element.textContent = text;
+
+      messagesEl.append(element);
+    }
+
+
+    function setStatus(value) {
+      statusEl.className =
+        "status mono";
+
+      statusEl.textContent = value;
+
+      if (value === "online") {
+        statusEl.classList.add("online");
+      }
+
+      if (value === "offline") {
+        statusEl.classList.add("offline");
+      }
+    }
+
+
+    async function loadMessages() {
+
+      refreshEl.disabled = true;
+      setStatus("syncing");
+
+      try {
+
+        const response =
+          await fetch(API, {
+            headers: {
+              Accept:
+                "application/vnd.github+json"
+            }
+          });
+
+
+        if (!response.ok) {
+
+          if (response.status === 404) {
+            throw new Error(
+              "repo or issue not found"
+            );
+          }
+
+          if (response.status === 403) {
+            throw new Error(
+              "github rate limit"
+            );
+          }
+
+          throw new Error(
+            `github api ${response.status}`
+          );
+        }
+
+
+        const comments =
+          await response.json();
+
+
+        const recent =
+          comments
+            .reverse()
+            .slice(0, MAX_MESSAGES);
+
+
+        countEl.textContent =
+          String(recent.length)
+            .padStart(2, "0");
+
+
+        messagesEl.innerHTML = "";
+
+
+        if (!recent.length) {
+          showState("no messages yet");
+        }
+
+        else {
+          recent.forEach(
+            (comment, index) => {
+              messagesEl.append(
+                createMessage(
+                  comment,
+                  index
+                )
+              );
+            }
+          );
+        }
+
+
+        setStatus("online");
+
+
+        syncEl.textContent =
+          "last sync / " +
+          new Date()
+            .toLocaleTimeString(
+              "tr-TR",
+              {
+                hour: "2-digit",
+                minute: "2-digit"
+              }
+            );
+
+      }
+
+      catch (error) {
+
+        countEl.textContent = "—";
+
+        showState(error.message);
+        setStatus("offline");
+
+      }
+
+      finally {
+
+        refreshEl.disabled = false;
+
+      }
+    }
+
+
+    refreshEl.addEventListener(
+      "click",
+      loadMessages
+    );
+
+
+    loadMessages();
+
+
+    setInterval(() => {
+
+      if (!document.hidden) {
+        loadMessages();
+      }
+
+    }, REFRESH_INTERVAL);
+
+
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+
+        if (!document.hidden) {
+          loadMessages();
+        }
+
+      }
+    );
+  </script>
+
+</body>
+</html>
