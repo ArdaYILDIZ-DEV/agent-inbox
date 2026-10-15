@@ -20,6 +20,7 @@
       color-scheme: dark;
       --bg: #1c1c1c;
       --surface: #242424;
+      --panel: #222120;
       --hover: #252524;
       --text: #eeeae2;
       --muted: #afada6;
@@ -66,6 +67,7 @@
     .intro { margin: 12px 0 0; color: var(--muted); font-size: 15px; max-width: 50ch; }
     .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 9px 15px; background: var(--surface); border: 1px solid var(--control); border-radius: 5px; font-size: 13px; font-weight: 500; white-space: nowrap; }
     .button:hover:not(:disabled) { background: #30302d; border-color: var(--muted); }
+    .mast > div { min-width: 0; }
     .button:disabled { color: var(--muted); }
     .summary { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 24px; flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--control); font: 12px/1.7 var(--mono); color: var(--muted); }
     #count { margin: 0; color: var(--text); }
@@ -80,8 +82,8 @@
     .row-main { min-width: 0; }
     .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font: 12px/1.7 var(--mono); color: var(--muted); }
     .agent { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; color: #c8c5bd; overflow-wrap: anywhere; }
-    .agent::before { content: ""; width: 5px; height: 5px; flex: none; border-radius: 50%; border: 1px solid var(--control); }
-    .unread .agent::before { background: var(--link); border-color: var(--link); }
+    .unread-label { padding: 1px 5px; border: 1px solid var(--line); border-radius: 3px; color: var(--muted); font: 10px/1.6 var(--mono); }
+    .unread .row-title { color: #f5f0e7; font-weight: 500; }
     .when { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .row-title { margin: 9px 0 0; font: 450 26px/1.22 var(--serif); letter-spacing: -.015em; overflow-wrap: anywhere; }
     .preview { max-width: 76ch; margin: 8px 0 0; color: var(--muted); font-size: 15px; line-height: 1.65; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
@@ -110,15 +112,16 @@
     .toc { position: sticky; top: var(--reader-offset); z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
     .toc-title { display: none; }
     .toc-toggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 0; border: 0; background: none; text-align: left; font: 500 13px/1.5 var(--sans); }
-    .toc-count { margin-left: auto; color: var(--muted); font: 10px/1.6 var(--mono); }
+    .toc-current { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font: 12px/1.5 var(--sans); }
+    .toc-count { flex: none; margin-left: auto; color: var(--muted); font: 10px/1.6 var(--mono); }
     .toc-toggle svg { width: 16px; height: 16px; transform: rotate(90deg); }
     .toc.is-open .toc-toggle svg { transform: rotate(-90deg); }
-    .toc-links { display: none; position: absolute; top: 100%; inset-inline: 0; padding: 8px 6px 12px; max-height: min(55vh, 420px); max-height: min(55dvh, 420px); overflow-y: auto; overscroll-behavior: contain; background: var(--bg); border-bottom: 1px solid var(--control); }
+    .toc-links { display: none; position: absolute; top: calc(100% + 8px); inset-inline: 0; padding: 8px 6px; max-height: min(55vh, calc(100vh - var(--reader-offset) - 72px), 420px); max-height: min(55dvh, calc(100dvh - var(--reader-offset) - 72px), 420px); overflow-y: auto; overscroll-behavior: contain; background: var(--panel); border: 1px solid #55514a; border-radius: 6px; box-shadow: 0 8px 28px #0005; scrollbar-width: thin; }
     .toc.is-open .toc-links { display: block; }
     .toc ol { margin: 0; padding: 0; list-style: none; }
-    .toc-item { display: block; width: 100%; min-height: 44px; padding: 10px 10px 10px calc(10px + var(--toc-level, 0) * 12px); border: 0; border-left: 1px solid var(--line); background: none; color: var(--muted); font: 400 13px/1.5 var(--sans); text-align: left; overflow-wrap: anywhere; }
+    .toc-item { display: block; width: 100%; min-height: 44px; padding: 10px 10px 10px calc(10px + var(--toc-level, 0) * 12px); border: 0; border-left: 2px solid var(--line); background: none; color: var(--muted); font: 500 13px/1.5 var(--sans); text-align: left; overflow-wrap: anywhere; }
     .toc-item:hover { color: var(--text); background: var(--hover); }
-    .toc-item[aria-current] { color: var(--link); border-left: 2px solid var(--link); font-weight: 600; }
+    .toc-item[aria-current] { color: var(--link); border-left-color: var(--link); background: var(--hover); }
     @media (min-width: 1280px) {
       #read { --section-gap: 24px; }
       .reader-layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--reading) minmax(0, 1fr); gap: 24px; align-items: start; }
@@ -126,7 +129,7 @@
       .toc { grid-column: 1; grid-row: 1; margin-top: 36px; padding-top: 4px; top: calc(var(--reader-offset) + 28px); border-bottom: 0; z-index: 1; min-width: 0; }
       .toc-title { display: block; margin: 0 0 14px; color: var(--muted); font: 10px/1.6 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
       .toc-toggle { display: none; }
-      .toc .toc-links { display: block; position: static; padding: 4px 6px; margin-left: -6px; max-height: calc(100vh - 170px); max-height: calc(100dvh - 170px); border-bottom: 0; scrollbar-width: thin; }
+      .toc .toc-links { display: block; position: static; padding: 4px 6px; margin-left: -6px; max-height: calc(100vh - 170px); max-height: calc(100dvh - 170px); border: 0; border-radius: 0; background: none; box-shadow: none; }
       .toc-item { min-height: 36px; padding-block: 8px; font-size: 12px; }
     }
     .message-head { padding-bottom: 24px; margin-bottom: 30px; border-bottom: 1px solid var(--line); }
@@ -157,15 +160,27 @@
     .body pre { margin: 0 0 1.8em; padding: 20px 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 5px; overflow: auto; font-size: 13px; line-height: 1.8; overflow-wrap: normal; tab-size: 2; }
     .body pre code { padding: 0; background: none; font-size: inherit; }
     .body pre:focus-visible, .table-wrap:focus-visible { outline-offset: 2px; }
+    .code-block { min-width: 0; max-width: 100%; margin: 0 0 1.8em; overflow: hidden; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+    .code-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 2px 10px 2px 20px; border-bottom: 1px solid var(--line); }
+    .code-language { min-width: 0; overflow-wrap: anywhere; color: var(--muted); font: 11px/1.6 var(--mono); }
+    .copy-code { flex: none; min-width: 76px; min-height: 36px; padding: 6px 10px; border: 0; border-radius: 4px; background: none; color: var(--muted); font: 500 12px/1.5 var(--sans); }
+    .copy-code:hover:not(:disabled) { background: #ffffff08; color: var(--text); }
+    .copy-code[aria-busy="true"] { cursor: wait; }
+    .copy-code:focus-visible, .code-block pre:focus-visible { outline-offset: -3px; }
+    .body .code-block pre { margin: 0; border: 0; border-radius: 0; background: none; }
+    .code-status:not(.sr-only) { margin: 0; padding: 10px 16px; border-top: 1px solid var(--line); color: var(--error); font: 12px/1.6 var(--sans); }
     .body hr { border: 0; border-top: 1px solid var(--line); margin: 32px 0; }
-    .task-mark { font: 15px var(--mono); margin-right: 8px; color: var(--muted); }
+    .body li.task-item { list-style: none; }
+    .task-mark { position: relative; display: inline-block; width: 14px; height: 14px; margin-right: 9px; border: 1px solid var(--muted); border-radius: 3px; vertical-align: -.03em; }
+    .task-mark[data-checked="true"]::after { content: ""; position: absolute; top: 1px; left: 4px; width: 4px; height: 8px; border-right: 1.5px solid var(--text); border-bottom: 1.5px solid var(--text); transform: rotate(45deg); }
     .table-wrap { overflow: auto; margin-bottom: 1.5em; }
     .body table { width: 100%; border-collapse: collapse; font: 14px/1.6 var(--sans); text-align: left; }
     .body th, .body td { padding: 11px 14px; border: 1px solid var(--line); min-width: 120px; }
     .body th { background: var(--surface); font-weight: 600; }
     .message-source { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 32px; padding: 12px 0; font-size: 13px; color: var(--muted); }
     .fnav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; padding-top: 24px; border-top: 1px solid var(--control); }
-    .fnav a { display: block; min-width: 0; padding: 8px 0; }
+    .fnav a { display: block; min-width: 0; min-height: 64px; padding: 12px 0; }
+    .fnav a:hover { background: var(--hover); }
     .fnav a:hover .nav-preview { text-decoration: underline; text-underline-offset: 4px; }
     .fnav small { display: block; color: var(--muted); font: 11px/1.7 var(--mono); }
     .nav-preview { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; margin-top: 8px; font: 450 22px/1.3 var(--serif); overflow-wrap: anywhere; }
@@ -215,6 +230,9 @@
       .body h3 { font-size: 23px; }
       .body h4 { font-size: 21px; }
       .body pre { padding: 14px; font-size: 12px; }
+      .code-bar { padding-left: 14px; }
+      .copy-code { min-height: 44px; }
+      .toc-current { font-size: 11px; }
       .fnav { gap: 20px; }
       .fnav small { font-size: 10px; }
       .nav-preview { font-size: 21px; }
@@ -227,19 +245,24 @@
       to { opacity: 1; filter: none; transform: none; }
     }
     :root { --soft-out: cubic-bezier(0.165, 0.84, 0.44, 1); --weighted: cubic-bezier(0.22, 1, 0.36, 1); }
-    .row, .button, .adjacent a, .toc-toggle, .toc-item { transition: background-color 120ms var(--soft-out), border-color 120ms var(--soft-out), color 120ms var(--soft-out); }
-    .button, .adjacent a, .toc-toggle { transition-property: background-color, border-color, color, transform; }
-    .button:not(:disabled):active, .adjacent a[href]:active, .toc-toggle:active { transform: translateY(1px); }
+    .row, .button, .adjacent a, .toc-toggle, .toc-item, .copy-code, .fnav a { transition: background-color 120ms var(--soft-out), border-color 120ms var(--soft-out), color 120ms var(--soft-out); }
+    .button { box-shadow: 0 1px 2px #0002; transition: background-color 120ms var(--soft-out), border-color 120ms var(--soft-out), color 120ms var(--soft-out), transform 180ms var(--soft-out), box-shadow 180ms var(--soft-out); }
+    .adjacent a, .toc-toggle, .copy-code { transition-property: background-color, border-color, color, transform; }
+    .button:not(:disabled):active { transform: translateY(1px) scale(.98); box-shadow: 0 1px 2px #0002; }
+    .adjacent a[href]:active, .toc-toggle:active, .copy-code:not(:disabled):active { transform: scale(.99); }
     .row-title { transition: color 120ms var(--soft-out); }
     .row-arrow { transition: transform 120ms var(--soft-out), color 120ms var(--soft-out); }
     .toc-toggle svg { transition: transform 180ms var(--soft-out), color 120ms var(--soft-out); }
-    .message-head { animation: soft-enter 240ms var(--weighted); }
+    .message-head { animation: soft-enter 240ms var(--weighted) both; }
     #notice:not([hidden]), #rstate:not([hidden]) .state { animation: soft-enter 180ms var(--soft-out); }
     @media (max-width: 1279px) {
       .toc.is-open .toc-links { animation: soft-enter 180ms var(--soft-out); }
     }
+    .source svg, .back svg, .message-source .text-link { transition: transform 120ms var(--soft-out), color 120ms var(--soft-out); }
     @media (hover: hover) {
-      .row:hover .row-arrow { transform: translateX(2px); }
+      .button:hover:not(:disabled):not(:active) { transform: translateY(-1px); box-shadow: 0 3px 8px #0003; }
+      .row:hover .row-arrow, .source:hover svg { transform: translateX(2px); }
+      .back:hover svg { transform: translateX(-2px); }
     }
   </style>
 </head>
@@ -292,10 +315,10 @@
           <aside id="toc" class="toc" aria-label="İçindekiler" hidden>
             <p class="toc-title">İçindekiler</p>
             <button id="toc-toggle" class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-links">
-              İçindekiler <span id="toc-count" class="toc-count"></span>
+              İçindekiler <span id="toc-current" class="toc-current" aria-hidden="true"></span><span id="toc-count" class="toc-count"></span>
               <svg viewBox="0 0 256 256" aria-hidden="true"><use href="assets/icons.svg#caret-right"/></svg>
             </button>
-            <nav id="toc-links" class="toc-links" aria-label="Bu mesajdaki başlıklar"><ol id="toc-list"></ol></nav>
+            <nav id="toc-links" class="toc-links" aria-label="Bu mesajdaki başlıklar" inert><ol id="toc-list"></ol></nav>
           </aside>
           <article id="rmain" class="reading" aria-labelledby="message-title" tabindex="-1" hidden>
             <header class="message-head">
@@ -408,6 +431,10 @@
     }
     function plain(text) {
       return text.replace(/```[^\n]*\n[\s\S]*?(?:```|$)/g, " Kod bloğu ")
+        .replace(/<(https?:\/\/[^>\s]+)>/g, "$1")
+        .replace(/<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^>\n]*)?\/?>/g, "")
+        .replace(/^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/gm, "")
+        .replace(/^\s*\||\|\s*$/gm, "").replace(/[ \t]*\|[ \t]*/g, " · ")
         .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
         .replace(/^\s*(?:#{1,6}|>|[-*+]\s+\[[ xX]\]|[-*+]|\d+[.)])\s+/gm, "")
@@ -464,8 +491,23 @@
           const fence = match[1], block = []; i++;
           while (i < lines.length && !new RegExp(`^\\s*${fence}\\s*$`).test(lines[i])) block.push(lines[i++]);
           if (i < lines.length) i++;
-          const pre = el("pre"); pre.tabIndex = 0; pre.setAttribute("aria-label", "Kod bloğu, yatay kaydırılabilir");
-          pre.append(el("code", "", block.join("\n"))); fragment.append(pre); continue;
+          const wrap = el("div", "code-block"), bar = el("div", "code-bar"), pre = el("pre");
+          pre.tabIndex = 0; pre.setAttribute("aria-label", "Kod bloğu, yatay kaydırılabilir");
+          const code = el("code", "", block.join("\n")), copy = el("button", "copy-code", "Kopyala"), status = el("p", "sr-only code-status");
+          copy.type = "button"; copy.setAttribute("aria-label", "Kod bloğunu kopyala"); status.setAttribute("role", "status");
+          copy.addEventListener("click", async () => {
+            if (copy.getAttribute("aria-busy") === "true") return;
+            copy.setAttribute("aria-busy", "true"); copy.textContent = "Kopyalanıyor…";
+            try {
+              if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+              await navigator.clipboard.writeText(code.textContent);
+              copy.textContent = "Kopyalandı"; status.className = "sr-only code-status"; status.textContent = "Kod panoya kopyalandı.";
+            } catch {
+              copy.textContent = "Tekrar dene"; status.className = "code-status"; status.textContent = "Kopyalanamadı. Kod metnini seçerek kopyalayabilirsin.";
+            } finally { copy.removeAttribute("aria-busy"); }
+          });
+          bar.append(el("span", "code-language", match[2].trim().split(/\s+/)[0].slice(0, 32) || "Kod"), copy);
+          pre.append(code); wrap.append(bar, pre, status); fragment.append(wrap); continue;
         }
         if ((match = /^(#{1,6})\s+(.+)/.exec(line))) {
           const heading = el("h" + Math.min(match[1].length + 1, 6));
@@ -500,7 +542,8 @@
             const li = el("li"), content = match[3], nested = []; i++;
             const task = /^\[([ xX])\]\s+(.*)$/.exec(content);
             if (task) {
-              const done = task[1].toLowerCase() === "x", mark = el("span", "task-mark", done ? "☑" : "☐");
+              const done = task[1].toLowerCase() === "x", mark = el("span", "task-mark");
+              li.className = "task-item"; mark.setAttribute("data-checked", String(done));
               mark.setAttribute("aria-hidden", "true"); li.append(mark, el("span", "sr-only", done ? "Tamamlandı: " : "Tamamlanmadı: ")); inline(li, task[2]);
             } else inline(li, content);
             while (i < lines.length && lines[i].trim() && /^\s+/.test(lines[i]) && lines[i].match(/^\s*/)[0].length > indent) {
@@ -520,15 +563,23 @@
       return fragment;
     }
 
-    let tocHeadings = [], tocItems = [], tocFrame = 0;
+    let tocHeadings = [], tocItems = [], tocFrame = 0, tocCurrent = -1, tocFocus = null;
     const wideReader = () => window.matchMedia("(min-width: 1280px)").matches;
     function closeToc() {
       $("#toc").classList.remove("is-open");
       $("#toc-toggle").setAttribute("aria-expanded", "false");
+      $("#toc-links").inert = !wideReader();
     }
     function resetToc() {
-      closeToc(); $("#toc").hidden = true; $("#toc-list").replaceChildren();
-      tocHeadings = []; tocItems = [];
+      closeToc(); $("#toc").hidden = true; $("#toc-list").replaceChildren(); $("#toc-current").textContent = "";
+      tocHeadings = []; tocItems = []; tocCurrent = -1; tocFocus = null;
+    }
+    function setCurrentSection(index) {
+      if (index === tocCurrent) return;
+      tocItems[tocCurrent]?.removeAttribute("aria-current");
+      tocItems[index]?.setAttribute("aria-current", "location");
+      tocCurrent = index;
+      $("#toc-current").textContent = tocItems[index]?.textContent || "";
     }
     function buildToc(id) {
       resetToc();
@@ -543,7 +594,7 @@
         button.type = "button"; button.setAttribute("aria-controls", heading.id);
         button.style.setProperty("--toc-level", String(Math.min(3, Number(heading.getAttribute("data-level")) - baseLevel)));
         button.addEventListener("click", () => {
-          closeToc();
+          closeToc(); setCurrentSection(index);
           heading.focus({ preventScroll: true });
           // This is an in-reader action, not a hash route or a new history entry.
           heading.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -562,10 +613,9 @@
       const offset = Math.max(barBottom, parseFloat(getComputedStyle(tocHeadings[0]).scrollMarginTop)) + 2;
       let current = 0;
       tocHeadings.forEach((heading, index) => { if (heading.getBoundingClientRect().top <= offset) current = index; });
-      tocItems.forEach((item, index) => {
-        if (index === current) item.setAttribute("aria-current", "location");
-        else item.removeAttribute("aria-current");
-      });
+      // A short final section cannot reach the sticky offset: the document edge is its endpoint.
+      if (window.scrollY > 0 && window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2) current = tocHeadings.length - 1;
+      setCurrentSection(current);
       const nav = $("#toc-links"), item = tocItems[current];
       // Keep the active entry visible without moving the document or a keyboard user's focus.
       if ((wideReader() || $("#toc").classList.contains("is-open")) && !nav.contains(document.activeElement)) {
@@ -584,7 +634,9 @@
       const main = el("div", "row-main"), meta = el("div", "meta"), agent = el("span", "agent", message.agent);
       if (unread) agent.append(el("span", "sr-only", " — okunmamış"));
       const time = el("time", "when", fmtTime(message.at)); time.dateTime = message.at; time.title = `${fmtDate(message.at)}, ${fmtTime(message.at)}`;
-      meta.append(agent, time); main.append(meta, el("h3", "row-title", content.title));
+      meta.append(agent);
+      if (unread) { const label = el("span", "unread-label", "Yeni"); label.setAttribute("aria-hidden", "true"); meta.append(label); }
+      meta.append(time); main.append(meta, el("h3", "row-title", content.title));
       if (content.preview) main.append(el("p", "preview", content.preview));
       const arrow = document.createElementNS("http://www.w3.org/2000/svg", "svg");
       arrow.setAttribute("viewBox", "0 0 256 256"); arrow.setAttribute("aria-hidden", "true"); arrow.classList.add("row-arrow");
@@ -690,6 +742,9 @@
         if (words > 120) $("#message-meta").append(el("span", "", `Yaklaşık ${Math.max(1, Math.ceil(words / 200))} dk okuma`));
         $("#body").replaceChildren(markdown(message.text || "(Boş mesaj)"));
         buildToc(message.id);
+        $(".message-head").getAnimations().forEach(animation => {
+          if (animation.animationName === "soft-enter") { animation.currentTime = 0; animation.play(); }
+        });
         $("#original").href = `${SOURCE}#issuecomment-${message.id}`;
         readerSignature = signature;
       }
@@ -796,11 +851,25 @@
     $("#toc-toggle").addEventListener("click", () => {
       const open = $("#toc").classList.toggle("is-open");
       $("#toc-toggle").setAttribute("aria-expanded", String(open));
+      $("#toc-links").inert = !open && !wideReader();
       if (open) queueTocUpdate();
     });
-    document.addEventListener("click", event => { if (!event.target.closest("#toc")) closeToc(); });
+    $("#toc").addEventListener("focusout", event => {
+      if (!wideReader() && event.relatedTarget && !$("#toc").contains(event.relatedTarget)) closeToc();
+    });
+    document.addEventListener("focusin", event => { tocFocus = $("#toc").contains(event.target) ? event.target : null; });
+    document.addEventListener("click", event => { if (!event.target.closest("#toc")) { tocFocus = null; closeToc(); } });
     window.addEventListener("scroll", queueTocUpdate, { passive: true });
-    window.addEventListener("resize", () => { closeToc(); queueTocUpdate(); });
+    window.addEventListener("resize", () => {
+      // CSS can blur a hidden control before resize fires. Retain only TOC-owned focus, never unrelated focus.
+      const focused = document.activeElement === document.body ? tocFocus : document.activeElement;
+      closeToc();
+      if (!$("#toc").hidden && focused) {
+        if (wideReader() && focused === $("#toc-toggle")) (tocItems[tocCurrent] || tocItems[0])?.focus({ preventScroll: true });
+        else if (!wideReader() && $("#toc-links").contains(focused)) $("#toc-toggle").focus({ preventScroll: true });
+      }
+      queueTocUpdate();
+    });
     document.fonts.ready.then(queueTocUpdate);
     $("#year").textContent = new Date().getFullYear();
     $("#refresh").addEventListener("click", load);

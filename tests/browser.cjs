@@ -58,6 +58,7 @@ async function inspectEntry(locator) {
     if (mode === 'offline') return route.abort('internetdisconnected');
     if (mode === 'rate-limit') return route.fulfill({ status: 403, json: { message: 'Rate limit' } });
     if (requestUrl.pathname.includes('/issues/comments/')) {
+      if (id === 996) return route.fulfill({ json: comment(996, '[atheris] # İnceleme notları\n\n' + 'Okuma deneyimini gerçek içerikle değerlendiriyoruz. '.repeat(60) + '\n\n## Sonuç\n\nKısa sonuç.') });
       if (id === 999) return route.fulfill({ json: comment(999, '[archive] Ancien message hors des douze derniers.') });
       if (id === 998) return route.fulfill({ json: { ...comment(998), issue_url: `${apiRoot}/issues/2` } });
       return route.fulfill({ status: 404, json: { message: 'Not found' } });
@@ -107,16 +108,28 @@ async function inspectEntry(locator) {
     check(await page.evaluate(() => document.activeElement.classList.contains('skip')), 'keyboard users can skip to the content');
     await page.keyboard.press('Enter');
     check(await page.evaluate(() => document.activeElement.id) === 'main', 'skip link focuses the main landmark');
+    await page.locator('#refresh').hover();
+    await page.waitForFunction(() => new DOMMatrix(getComputedStyle(document.querySelector('#refresh')).transform).f < -.9);
+    check(true, 'surface controls rise by only 1px on hover');
+    await page.mouse.down();
+    await page.waitForFunction(() => {
+      const matrix = new DOMMatrix(getComputedStyle(document.querySelector('#refresh')).transform);
+      return matrix.f > .9 && matrix.a < .99;
+    });
+    check(true, 'press feedback moves the control down and applies a restrained scale');
+    await page.mouse.up(); await ready();
 
     const row = page.locator('.row').nth(7); await row.scrollIntoViewIfNeeded();
     const position = await page.evaluate(() => scrollY), origin = await row.getAttribute('data-id');
     await row.click(); await page.waitForSelector('#rmain:visible');
     check(await page.evaluate(() => document.activeElement.id) === 'rmain', 'opening a message focuses its article');
     await page.locator('#older').click(); await page.waitForURL(`**/#/m/${Number(origin) - 1}`);
+    check(await page.locator('.message-head').evaluate(n => n.getAnimations().some(a => a.animationName === 'soft-enter' && a.playState === 'running')), 'adjacent message changes replay the small header entry');
     await page.goBack(); await page.waitForSelector('#home:visible');
     check(Math.abs(await page.evaluate(() => scrollY) - position) <= 2, 'browser Back restores the inbox scroll position after adjacent navigation');
     check(await page.evaluate(() => document.activeElement.dataset.id) === origin, 'return focus belongs to the originating list row');
     check(!await page.locator(`.row[data-id="${origin}"]`).evaluate(n => n.classList.contains('unread')), 'opened messages retain their read state');
+    check((await page.locator('#count').innerText()).includes(`${await page.locator('.row.unread').count()} okunmamış`), 'unread counter stays consistent with visible rows on return');
     await more();
     check(await page.locator('.row').count() === 24, 'load more reveals the next batch');
     check(await page.evaluate(() => document.activeElement.dataset.id) === '1018', 'load more focuses the first newly revealed message');
@@ -130,6 +143,23 @@ async function inspectEntry(locator) {
     check(await page.locator('#body').evaluate(n => getComputedStyle(n).fontFamily.includes('Newsreader')) &&
       await page.locator('#body pre').evaluate(n => getComputedStyle(n).fontFamily.includes('Commit Mono')), 'long-form prose and code retain distinct typographic roles');
     check(await page.locator('#body img, #body script, #body a[href^="javascript:"]').count() === 0 && !await page.evaluate(() => window.injected), 'untrusted Markdown is inert');
+    await page.evaluate(() => Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async text => { window.copiedCode = text; } } }));
+    await page.locator('.copy-code').click();
+    await page.waitForFunction(() => document.querySelector('.copy-code').textContent === 'Kopyalandı');
+    check(await page.evaluate(() => window.copiedCode === document.querySelector('#body pre code').textContent), 'copy action transfers only the exact code text, not the toolbar or language label');
+    check(await page.locator('.copy-code').evaluate(n => n === document.activeElement), 'copy feedback preserves focus on the action instead of disabling and blurring it');
+    await page.evaluate(() => { navigator.clipboard.writeText = () => new Promise(resolve => { window.copyCalls = (window.copyCalls || 0) + 1; window.resolveCopy = resolve; }); });
+    await page.locator('.copy-code').click(); await page.locator('.copy-code').click();
+    check(await page.evaluate(() => window.copyCalls === 1) && await page.locator('.copy-code').getAttribute('aria-busy') === 'true', 'repeated clicks cannot start duplicate in-flight clipboard operations');
+    await page.evaluate(() => window.resolveCopy());
+    await page.waitForFunction(() => !document.querySelector('.copy-code').hasAttribute('aria-busy'));
+    await page.evaluate(() => { navigator.clipboard.writeText = async () => { throw new DOMException('Denied', 'NotAllowedError'); }; });
+    await page.locator('.copy-code').click();
+    await page.waitForFunction(() => document.querySelector('.code-status').textContent.includes('Kopyalanamadı'));
+    check(!await page.locator('.copy-code').isDisabled() && await page.locator('#body pre').isVisible(), 'clipboard denial leaves selectable code and a recoverable copy action');
+    await page.evaluate(() => { navigator.clipboard.writeText = async text => { window.copiedCode = text; }; });
+    await page.locator('.copy-code').click();
+    await page.waitForFunction(() => document.querySelector('.copy-code').textContent === 'Kopyalandı');
     check(await page.locator('.toc-item').count() === await page.locator('#body :is(h2,h3,h4,h5,h6)').count(), 'TOC includes every rendered heading, not code or raw HTML');
     check(await page.locator('#body [id]').evaluateAll(nodes => new Set(nodes.map(n => n.id)).size === nodes.length), 'repeated headings have unique targets');
     check(await page.locator('.toc-item').nth(1).innerText() === 'Kontroller', 'TOC labels exclude Markdown syntax and auxiliary link announcements');
@@ -146,7 +176,7 @@ async function inspectEntry(locator) {
     await target.focus();
     check(await target.evaluate(n => n.matches(':focus-visible') && getComputedStyle(n).outlineStyle === 'solid'), 'interactive navigation retains its keyboard focus ring');
     await page.keyboard.press('Enter');
-    await page.waitForFunction(id => document.querySelector('.toc-item[aria-current]')?.getAttribute('aria-controls') === id, targetId);
+    await page.waitForFunction(id => document.querySelector('.toc-item[aria-current]')?.getAttribute('aria-controls') === id && Math.abs(document.getElementById(id).getBoundingClientRect().top - parseFloat(getComputedStyle(document.getElementById(id)).scrollMarginTop)) < 2, targetId);
     check(await page.evaluate(id => document.activeElement.id === id && document.getElementById(id).getBoundingClientRect().top > document.querySelector('.reader-bar').getBoundingClientRect().bottom, targetId), 'keyboard TOC activation focuses an unobscured heading and updates the current section');
     check(await page.evaluate(() => location.hash) === routeHash && await page.evaluate(() => history.length) === historyLength, 'section navigation preserves the message route and Back history');
     if (process.env.SCREENSHOT_DIR) {
@@ -170,11 +200,12 @@ async function inspectEntry(locator) {
     await page.locator('#toc-toggle').click();
     const mobileTarget = page.locator('.toc-item').nth(5), mobileId = await mobileTarget.getAttribute('aria-controls');
     await mobileTarget.click();
-    await page.waitForFunction(id => document.querySelector('.toc-item[aria-current]')?.getAttribute('aria-controls') === id, mobileId);
+    await page.waitForFunction(id => document.querySelector('.toc-item[aria-current]')?.getAttribute('aria-controls') === id && Math.abs(document.getElementById(id).getBoundingClientRect().top - parseFloat(getComputedStyle(document.getElementById(id)).scrollMarginTop)) < 2, mobileId);
     check(!await page.locator('#toc-links').isVisible() && await page.evaluate(id => document.getElementById(id).getBoundingClientRect().top >= document.querySelector('#toc-toggle').getBoundingClientRect().bottom, mobileId), 'mobile navigation closes the list and reveals the destination below sticky bars');
     await page.evaluate(() => document.querySelectorAll('#body h3')[9].scrollIntoView());
     await page.waitForFunction(() => document.querySelector('.toc-item[aria-current]')?.textContent === 'Bölüm 9');
     check(await page.locator('.toc-item[aria-current]').count() === 1, 'manual scrolling tracks exactly one current section');
+    check(await page.locator('.message-head').evaluate(n => n.getAnimations().every(a => a.playState === 'finished')), 'reading and scrollspy do not replay header entry effects');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
     await page.locator('#toc-toggle').click();
     const dropdownEntry = await inspectEntry(page.locator('#toc-links'));
@@ -197,6 +228,7 @@ async function inspectEntry(locator) {
       await page.evaluate(() => scrollTo(0, 0));
       await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'reader-mobile.png') });
       await page.locator('#toc-toggle').click();
+      await page.locator('#toc-links').evaluate(n => Promise.all(n.getAnimations().map(a => a.finished)));
       await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'contents-mobile.png') });
       await page.keyboard.press('Escape');
     }
@@ -228,6 +260,31 @@ async function inspectEntry(locator) {
     check(await page.locator('#home').isVisible(), 'a directly loaded message has a safe inbox fallback');
 
     const direct = await context.newPage();
+    await direct.goto(`${url}#/m/996`); await direct.waitForSelector('.toc-item');
+    const finalSection = direct.locator('.toc-item').last(), finalId = await finalSection.getAttribute('aria-controls');
+    await finalSection.click();
+    await direct.waitForFunction(() => scrollY + innerHeight >= document.documentElement.scrollHeight - 2);
+    check(await direct.locator('.toc-item[aria-current]').getAttribute('aria-controls') === finalId, 'a short last section is current when scrolling reaches the document end');
+    await finalSection.focus();
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      await direct.setViewportSize({ width: 390, height: 844 });
+      await direct.waitForFunction(() => document.activeElement.id === 'toc-toggle');
+      check(await direct.evaluate(() => document.activeElement.id) === 'toc-toggle', `narrowing preserves visible TOC focus (cycle ${attempt})`);
+      await direct.setViewportSize({ width: 1440, height: 900 });
+      await direct.waitForFunction(() => document.activeElement.classList.contains('toc-item'));
+      check(await direct.evaluate(() => document.activeElement.classList.contains('toc-item')), `widening preserves sidebar focus (cycle ${attempt})`);
+    }
+    await direct.locator('#back').focus();
+    await direct.setViewportSize({ width: 390, height: 844 });
+    await direct.waitForFunction(() => document.querySelector('#toc-links').inert);
+    check(await direct.evaluate(() => document.activeElement.id) === 'back', 'responsive focus repair never steals focus from unrelated navigation');
+    await direct.setViewportSize({ width: 390, height: 400 });
+    await direct.locator('#toc-toggle').click();
+    await direct.locator('.toc-item').first().focus();
+    await direct.keyboard.press('Shift+Tab'); await direct.keyboard.press('Shift+Tab');
+    check(await direct.locator('#toc-toggle').getAttribute('aria-expanded') === 'false', 'tabbing out dismisses the compact contents panel');
+    check(await direct.locator('#toc-links').evaluate(n => n.inert), 'closed compact contents cannot receive keyboard focus');
+    await direct.setViewportSize({ width: 1440, height: 900 });
     await direct.goto(`${url}#/m/999`); await direct.waitForSelector('#rmain:visible');
     check(await direct.locator('#message-title').innerText() === 'archive', 'old deep links resolve independently of the latest twelve');
     check(!await direct.locator('#toc').isVisible() && await direct.locator('.toc-item').count() === 0, 'heading-free messages do not show an empty contents area');

@@ -13,6 +13,7 @@ class Node {
   constructor(tag = '#fragment') { this.tag = tag; this.children = []; this.attributes = {}; }
   append(...children) { this.children.push(...children); }
   setAttribute(key, value) { this.attributes[key] = value; }
+  addEventListener() {}
   get textContent() { return this.children.map(c => typeof c === 'string' ? c : c.textContent).join(''); }
   set textContent(value) { this.children = [String(value)]; }
 }
@@ -74,6 +75,11 @@ test('previews separate the first line and clean Markdown from subsequent lines'
   const content = app().summary({ text: '# Başlık\n\nParagraf.\n\n## Alt başlık\n- [x] Tamamlandı\n- İkinci madde' });
   assert.equal(content.title, 'Başlık');
   assert.equal(content.preview, 'Paragraf. Alt başlık Tamamlandı İkinci madde');
+});
+test('previews remove raw HTML and table separator syntax without losing cell text', () => {
+  const content = app().summary({ text: '# Sonuç\n\n<img src=x onerror=alert(1)>\n\n| Başlık | Sonuç |\n| --- | :---: |\n| Mobil | Tamam |' });
+  assert.equal(content.preview, 'Başlık · Sonuç Mobil · Tamam');
+  assert.equal(app().plain('<https://example.com/path> ve <span>güvenli metin</span>'), 'https://example.com/path ve güvenli metin');
 });
 test('short messages do not repeat the title as a preview', () => {
   assert.deepEqual(json(app().summary({ text: 'İş tamamlandı.' })), { title: 'İş tamamlandı.', preview: '' });
@@ -173,6 +179,25 @@ test('raw HTML and script protocols never create executable content', () => {
   assert.equal(links.length, 2);
   assert.ok(links.every(a => a.href.startsWith('https://') && a.rel === 'noopener noreferrer'));
   assert.match(tree.textContent, /<img src=x onerror=alert\(1\)>/);
+});
+test('tasks use font-independent state markers and code has an accessible copy action', () => {
+  const tree = app().markdown('- [x] Bitti\n- [ ] Bekliyor\n\n```js\nconst text = "**düz metin**";\n```');
+  const tasks = descendants(tree, 'li');
+  assert.ok(tasks.every(li => li.className === 'task-item'));
+  const markers = descendants(tree, 'span').filter(node => node.className === 'task-mark');
+  assert.deepEqual(markers.map(node => node.attributes['data-checked']), ['true', 'false']);
+  assert.ok(markers.every(node => node.textContent === '' && node.attributes['aria-hidden'] === 'true'));
+  const copy = descendants(tree, 'button')[0];
+  assert.equal(copy.textContent, 'Kopyala');
+  assert.equal(copy.type, 'button');
+  assert.equal(copy.attributes['aria-label'], 'Kod bloğunu kopyala');
+  assert.equal(descendants(tree, 'code')[0].textContent, 'const text = "**düz metin**";');
+});
+test('inline code keeps Markdown markers literal', () => {
+  const tree = app().markdown('`**kelime**` ve `https://example.com`');
+  assert.deepEqual(descendants(tree, 'code').map(node => node.textContent), ['**kelime**', 'https://example.com']);
+  assert.equal(descendants(tree, 'strong').length, 0);
+  assert.equal(descendants(tree, 'a').length, 0);
 });
 test('an unclosed code fence keeps the remaining source visible', () => {
   const tree = app().markdown('```\nfirst\nsecond');
