@@ -10,12 +10,27 @@ const root = path.resolve(__dirname, '..');
 const apiRoot = 'https://api.github.com/repos/ArdaYILDIZ-DEV/agent-inbox';
 const issue = `${apiRoot}/issues/1`;
 const date = new Date().toISOString();
-const rich = '# Okunabilir bir mesaj\n\nBirinci paragraf. **Önemli bir not** ve `index.html` içeriği.\n\n## Kontroller\n\n- [x] Masaüstü\n- [ ] Mobil\n\n> Sade ve okunabilir.\n\n```js\nconst longLine = "' + 'x'.repeat(250) + '";\n```\n\n| Başlık | Sonuç |\n| --- | --- |\n| Mobil | Tamam |\n\n[Kaynak](https://example.com)\n\n<img src=x onerror="window.injected=true">\n\n[Tehlike](javascript:alert(1))\n\n' + ('Uzun mesajlarda satır uzunluğu ve paragraf araları rahat bir okuma deneyimi sunmalı. '.repeat(5) + '\n\n').repeat(12);
+const sections = Array.from({ length: 18 }, (_, i) => `## ${i < 2 ? 'Tekrarlanan başlık' : 'Bölüm ' + (i + 1)}\n\n${'Uzun içerikte başlıklarla metin birbirinden ayrılmalı; okuma alanı rahat kalmalı. '.repeat(12)}\n\n`).join('');
+const rich = '# Okunabilir bir mesaj\n\nBirinci paragraf. **Önemli bir not** ve `index.html` içeriği.\n\n## [Kontroller](https://example.com)\n\n- [x] Masaüstü\n- [ ] Mobil\n\n> Sade ve okunabilir.\n\n```js\nconst longLine = "' + 'x'.repeat(250) + '";\n```\n\n| Başlık | Sonuç |\n| --- | --- |\n| Mobil | Tamam |\n\n[Kaynak](https://example.com)\n\n<img src=x onerror="window.injected=true">\n\n[Tehlike](javascript:alert(1))\n\n' + sections + '### Alt bölüm\n\nAlt bölüm metni.\n\n#### Ayrıntı\n\nAyrıntı metni.\n\n##### Beşinci düzey\n\nBeşinci düzey metni.\n\n###### Altıncı düzey\n\n' + 'Son bölümde de kaydırma için yeterli metin olmalı. '.repeat(60);
 const comment = (id, body = `@ArdaYILDIZ-DEV [codex] # Mesaj ${id}\n\nTamamlanan işler ve sonraki adımlar.`) => ({ id, body, created_at: date, issue_url: issue });
 const fixtures = Array.from({ length: 30 }, (_, i) => comment(1001 + i));
 fixtures[29] = comment(1030, `@ArdaYILDIZ-DEV [atheris] ${rich}`);
+fixtures[0] = { ...fixtures[0], created_at: '2020-09-01T10:00:00Z' };
 let checks = 0;
 function check(value, message) { assert.ok(value, message); console.log(`PASS ${++checks}: ${message}`); }
+async function inspectEntry(locator) {
+  return locator.evaluate(node => {
+    // Restart the CSS entry synchronously, avoiding timing-dependent sleeps.
+    node.style.animationName = 'none'; void node.offsetWidth; node.style.removeProperty('animation-name');
+    const animation = node.getAnimations().find(a => a.animationName === getComputedStyle(node).animationName);
+    if (!animation) return null;
+    const timing = animation.effect.getTiming(), frames = animation.effect.getKeyframes();
+    animation.pause(); animation.currentTime = timing.duration / 2;
+    const style = getComputedStyle(node);
+    const result = { name: animation.animationName, duration: timing.duration, easing: style.animationTimingFunction, frames, filter: style.filter, transform: style.transform, opacity: Number(style.opacity) };
+    animation.finish(); return result;
+  });
+}
 
 (async () => {
   const server = http.createServer((request, response) => {
@@ -79,11 +94,15 @@ function check(value, message) { assert.ok(value, message); console.log(`PASS ${
     const sprite = await page.request.get(`${url}assets/icons.svg`);
     check(sprite.ok() && (await sprite.text()).includes('id="tray"') &&
       await page.locator('.brand use').getAttribute('href') === 'assets/icons.svg#tray', 'local Phosphor sprite resolves under a GitHub Pages repository subpath');
-    check(await page.locator('.day').first().evaluate(n => getComputedStyle(n).display) === 'grid', 'desktop date rail groups messages without separate cards');
+    check(await page.locator('.day').first().evaluate(n => {
+      const title = n.querySelector('h2').getBoundingClientRect(), rows = n.querySelector('.rows').getBoundingClientRect();
+      return title.right <= rows.left && title.top >= rows.top && title.height > title.width;
+    }), 'date headings stay in a compact rail to the left of the messages');
     check(await page.locator('.day h2').first().evaluate(n => {
       const style = getComputedStyle(n);
-      return style.writingMode === 'horizontal-tb' && style.whiteSpace === 'nowrap' && parseFloat(style.fontSize) >= 27;
-    }), 'day headings are prominent, horizontal and unbroken');
+      return style.writingMode === 'vertical-rl' && style.textOrientation === 'mixed' && style.position === 'sticky';
+    }), 'date text is rotated 90 degrees and follows its message group');
+    if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'inbox-desktop.png') });
     await page.keyboard.press('Tab');
     check(await page.evaluate(() => document.activeElement.classList.contains('skip')), 'keyboard users can skip to the content');
     await page.keyboard.press('Enter');
@@ -111,10 +130,77 @@ function check(value, message) { assert.ok(value, message); console.log(`PASS ${
     check(await page.locator('#body').evaluate(n => getComputedStyle(n).fontFamily.includes('Newsreader')) &&
       await page.locator('#body pre').evaluate(n => getComputedStyle(n).fontFamily.includes('Commit Mono')), 'long-form prose and code retain distinct typographic roles');
     check(await page.locator('#body img, #body script, #body a[href^="javascript:"]').count() === 0 && !await page.evaluate(() => window.injected), 'untrusted Markdown is inert');
-    for (const width of [320, 390, 768, 1440]) {
+    check(await page.locator('.toc-item').count() === await page.locator('#body :is(h2,h3,h4,h5,h6)').count(), 'TOC includes every rendered heading, not code or raw HTML');
+    check(await page.locator('#body [id]').evaluateAll(nodes => new Set(nodes.map(n => n.id)).size === nodes.length), 'repeated headings have unique targets');
+    check(await page.locator('.toc-item').nth(1).innerText() === 'Kontroller', 'TOC labels exclude Markdown syntax and auxiliary link announcements');
+    check((await page.locator('#rmain').boundingBox()).width === 720 && (await page.locator('#toc').boundingBox()).x < (await page.locator('#rmain').boundingBox()).x, 'desktop TOC uses the gutter without shrinking the article');
+    check(await page.locator('#body h3').first().evaluate(n => {
+      const h = getComputedStyle(n), p = getComputedStyle(document.querySelector('#body p'));
+      return h.fontFamily.includes('Instrument Sans') && h.fontWeight === '600' && parseFloat(h.fontSize) > parseFloat(p.fontSize) && parseFloat(h.marginTop) > parseFloat(p.marginBottom);
+    }), 'section headings have a stronger typographic hierarchy than prose');
+    await page.keyboard.press('Tab');
+    await page.evaluate(() => document.querySelector('#rmain').focus({ preventScroll: true }));
+    check(await page.locator('#rmain').evaluate(n => n === document.activeElement && getComputedStyle(n).outlineStyle === 'none'), 'article focus never draws a wrapper outline, including keyboard modality');
+    const routeHash = await page.evaluate(() => location.hash), historyLength = await page.evaluate(() => history.length);
+    const target = page.locator('.toc-item').nth(12), targetId = await target.getAttribute('aria-controls');
+    await target.focus();
+    check(await target.evaluate(n => n.matches(':focus-visible') && getComputedStyle(n).outlineStyle === 'solid'), 'interactive navigation retains its keyboard focus ring');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(id => document.querySelector('.toc-item[aria-current]')?.getAttribute('aria-controls') === id, targetId);
+    check(await page.evaluate(id => document.activeElement.id === id && document.getElementById(id).getBoundingClientRect().top > document.querySelector('.reader-bar').getBoundingClientRect().bottom, targetId), 'keyboard TOC activation focuses an unobscured heading and updates the current section');
+    check(await page.evaluate(() => location.hash) === routeHash && await page.evaluate(() => history.length) === historyLength, 'section navigation preserves the message route and Back history');
+    if (process.env.SCREENSHOT_DIR) {
+      await page.evaluate(() => scrollTo(0, 0));
+      await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'reader-desktop.png') });
+    }
+    for (const width of [320, 360, 390, 540, 541, 768, 1024, 1279, 1280, 1440, 1920]) {
       await page.setViewportSize({ width, height: 844 });
       check(await page.evaluate(() => document.documentElement.scrollWidth === innerWidth), `reader reflows without page overflow at ${width}px`);
+      check((await page.locator('#rmain').boundingBox()).width === Math.min(720, width - (width <= 540 ? 40 : width <= 760 ? 48 : 80)), `reading width is preserved at ${width}px`);
     }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => scrollTo(0, 0));
+    check(!await page.locator('#toc-links').isVisible() && await page.locator('#toc-toggle').getAttribute('aria-expanded') === 'false', 'mobile TOC starts collapsed');
+    await page.locator('#toc-toggle').click();
+    check(await page.locator('#toc-links').isVisible() && await page.locator('.toc-item').first().evaluate(n => n.getBoundingClientRect().height >= 44), 'mobile contents provide touch-sized targets');
+    const initialEntry = await inspectEntry(page.locator('#toc-links'));
+    check(initialEntry?.name === 'soft-enter' && initialEntry.duration === 180, 'contents consistently use the single soft-enter animation');
+    await page.keyboard.press('Escape');
+    check(await page.locator('#read').isVisible() && !await page.locator('#toc-links').isVisible() && await page.evaluate(() => document.activeElement.id) === 'toc-toggle', 'Escape closes mobile contents first and restores toggle focus');
+    await page.locator('#toc-toggle').click();
+    const mobileTarget = page.locator('.toc-item').nth(5), mobileId = await mobileTarget.getAttribute('aria-controls');
+    await mobileTarget.click();
+    await page.waitForFunction(id => document.querySelector('.toc-item[aria-current]')?.getAttribute('aria-controls') === id, mobileId);
+    check(!await page.locator('#toc-links').isVisible() && await page.evaluate(id => document.getElementById(id).getBoundingClientRect().top >= document.querySelector('#toc-toggle').getBoundingClientRect().bottom, mobileId), 'mobile navigation closes the list and reveals the destination below sticky bars');
+    await page.evaluate(() => document.querySelectorAll('#body h3')[9].scrollIntoView());
+    await page.waitForFunction(() => document.querySelector('.toc-item[aria-current]')?.textContent === 'Bölüm 9');
+    check(await page.locator('.toc-item[aria-current]').count() === 1, 'manual scrolling tracks exactly one current section');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.locator('#toc-toggle').click();
+    const dropdownEntry = await inspectEntry(page.locator('#toc-links'));
+    check(dropdownEntry?.name === 'soft-enter' && dropdownEntry.duration === 180 && dropdownEntry.easing === 'cubic-bezier(0.165, 0.84, 0.44, 1)' && dropdownEntry.frames[0].filter === 'blur(4px)' && dropdownEntry.frames[0].transform === 'translateY(6px)', 'contents use the preferred 180ms soft-out blur-and-slide entry');
+    check(dropdownEntry.opacity > 0 && dropdownEntry.opacity < 1 && dropdownEntry.filter !== 'none' && dropdownEntry.transform !== 'none', 'the dropdown entry renders intermediate opacity, blur and translation');
+    const headerEntry = await inspectEntry(page.locator('.message-head'));
+    check(headerEntry?.duration === 240 && headerEntry.easing === 'cubic-bezier(0.22, 1, 0.36, 1)', 'message headers use a restrained 240ms weighted entry');
+    check(await page.locator('.reader-bar').evaluate(n => getComputedStyle(n).animationName === 'none') && await page.locator('#rmain').evaluate(n => getComputedStyle(n).animationName === 'none'), 'sticky navigation and the long article are not animated as large surfaces');
+    check(await page.locator('#toc-toggle svg').evaluate(n => {
+      const style = getComputedStyle(n);
+      return style.transitionProperty.includes('transform') && style.transitionDuration.includes('0.18s') && style.transitionTimingFunction.includes('cubic-bezier(0.165, 0.84, 0.44, 1)');
+    }), 'the contents chevron rotates with the preferred short easing');
+    const smoothTarget = page.locator('.toc-item').nth(3), smoothId = await smoothTarget.getAttribute('aria-controls');
+    await smoothTarget.click();
+    await page.waitForFunction(id => Math.abs(document.getElementById(id).getBoundingClientRect().top - parseFloat(getComputedStyle(document.getElementById(id)).scrollMarginTop)) < 2, smoothId);
+    check(await page.evaluate(() => location.hash) === routeHash, 'smooth scrolling reaches the section without changing the route');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    check(await page.locator('#toc-toggle svg').evaluate(n => getComputedStyle(n).transitionDuration.includes('0.18s')), 'chevron timing stays consistent across system preferences');
+    if (process.env.SCREENSHOT_DIR) {
+      await page.evaluate(() => scrollTo(0, 0));
+      await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'reader-mobile.png') });
+      await page.locator('#toc-toggle').click();
+      await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'contents-mobile.png') });
+      await page.keyboard.press('Escape');
+    }
+    await page.setViewportSize({ width: 1440, height: 844 });
     await page.locator('#body pre').focus();
     check(await page.locator('#body pre').evaluate(n => n.scrollWidth > n.clientWidth && n === document.activeElement), 'wide code scrolls inside a keyboard-focusable region');
     await page.setViewportSize({ width: 390, height: 844 });
@@ -125,10 +211,11 @@ function check(value, message) { assert.ok(value, message); console.log(`PASS ${
     check((await page.locator('#back').boundingBox()).y >= 0 && (await page.locator('#back').boundingBox()).y < 70, 'return navigation stays available while reading a long message');
     await page.keyboard.press('Escape'); await page.waitForSelector('#home:visible');
     check(await page.locator('#home').isVisible(), 'Escape returns to the inbox without letter-key shortcuts');
-    for (const width of [320, 390, 768, 1440]) {
+    if (process.env.SCREENSHOT_DIR) await page.screenshot({ path: path.join(process.env.SCREENSHOT_DIR, 'inbox-mobile.png') });
+    for (const width of [320, 360, 390, 540, 541, 768, 1024, 1280, 1440]) {
       await page.setViewportSize({ width, height: 844 });
       check(await page.evaluate(() => document.documentElement.scrollWidth === innerWidth), `inbox reflows without overflow at ${width}px`);
-      if (width <= 390) check(await page.locator('.day').first().evaluate(n => getComputedStyle(n).display) === 'block', `date groups stack above messages at ${width}px`);
+      if (width <= 390) check(await page.locator('.day').first().evaluate(n => getComputedStyle(n.querySelector('h2')).writingMode === 'vertical-rl' && getComputedStyle(n).gridTemplateColumns.startsWith('40px')), `mobile dates use a compact 40px rotated rail at ${width}px`);
     }
     await page.locator('#refresh').click(); await ready();
     const title = page.locator('.row-title').first();
@@ -143,8 +230,11 @@ function check(value, message) { assert.ok(value, message); console.log(`PASS ${
     const direct = await context.newPage();
     await direct.goto(`${url}#/m/999`); await direct.waitForSelector('#rmain:visible');
     check(await direct.locator('#message-title').innerText() === 'archive', 'old deep links resolve independently of the latest twelve');
+    check(!await direct.locator('#toc').isVisible() && await direct.locator('.toc-item').count() === 0, 'heading-free messages do not show an empty contents area');
+    await direct.goto(`${url}#/m/1030`); await direct.waitForSelector('.toc-item');
     await direct.goto(`${url}#/m/998`); await direct.waitForSelector('#rstate button');
     check((await direct.locator('#rstate').innerText()).includes('Mesaj açılamadı'), 'comments belonging to another issue are rejected');
+    check(!await direct.locator('#toc').isVisible(), 'unavailable messages do not retain stale contents');
     await direct.goto(`${url}#/m/997`); await direct.waitForSelector('#rstate button');
     check(await direct.locator('#rstate .text-link').getAttribute('href') === 'https://github.com/ArdaYILDIZ-DEV/agent-inbox/issues/1#issuecomment-997', 'missing messages have a source fallback and retry');
     await direct.close();
@@ -179,6 +269,25 @@ function check(value, message) { assert.ok(value, message); console.log(`PASS ${
     await noStore.waitForSelector('#rmain:visible');
     check(await noStore.locator('#rmain').isVisible(), 'reading works when localStorage is unavailable');
     await denied.close();
+
+    const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2, colorScheme: 'light', reducedMotion: 'reduce' });
+    await touch.route('https://api.github.com/**', route => route.fulfill({ json: fixtures }));
+    const phone = await touch.newPage(); phone.on('pageerror', error => errors.push(error.message));
+    await phone.goto(`${url}#/m/1030`); await phone.waitForSelector('#toc-toggle:visible');
+    check(await phone.locator('#rmain').evaluate(n => n === document.activeElement && getComputedStyle(n).outlineStyle === 'none'), 'fresh touch-device deep links do not acquire a gold article frame');
+    for (const width of [320, 390, 430]) {
+      await phone.setViewportSize({ width, height: 844 });
+      await phone.locator('#toc-toggle').tap();
+      check(await phone.locator('#toc-toggle').getAttribute('aria-expanded') === 'true' && await phone.evaluate(() => document.documentElement.scrollWidth === innerWidth), `touch contents open without overflow at ${width}px`);
+      const section = phone.locator('.toc-item').nth(8), id = await section.getAttribute('aria-controls');
+      await section.tap();
+      await phone.waitForFunction(id => document.activeElement.id === id && Math.abs(document.getElementById(id).getBoundingClientRect().top - parseFloat(getComputedStyle(document.getElementById(id)).scrollMarginTop)) < 2, id);
+      check(await phone.locator('#toc-toggle').getAttribute('aria-expanded') === 'false' && await phone.evaluate(() => location.hash === '#/m/1030'), `touch section navigation closes contents and preserves the route at ${width}px`);
+    }
+    await phone.setViewportSize({ width: 390, height: 400 });
+    await phone.locator('#toc-toggle').tap();
+    check(await phone.locator('#toc-links').evaluate(n => n.getBoundingClientRect().bottom <= innerHeight && n.scrollHeight > n.clientHeight), 'contents remain bounded and scrollable in a short mobile viewport');
+    await touch.close();
     if (process.env.AXE_SOURCE) {
       await page.goto(url); await ready();
       for (const reader of [false, true]) {

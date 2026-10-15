@@ -7,7 +7,7 @@ const vm = require('node:vm');
 
 const html = fs.readFileSync(path.join(__dirname, '../index.html'), 'utf8');
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
-const setup = script.slice(0, script.indexOf('    $("#year").textContent'));
+const setup = script.slice(0, script.indexOf('    $("#toc-toggle").addEventListener'));
 
 class Node {
   constructor(tag = '#fragment') { this.tag = tag; this.children = []; this.attributes = {}; }
@@ -142,6 +142,15 @@ test('Markdown supports headings, emphasis, code, quotes and accessible tasks', 
   assert.match(tree.textContent, /Tamamlandı: Bitti/);
   assert.match(tree.textContent, /Tamamlanmadı: Bekliyor/);
   assert.equal(descendants(tree, 'pre')[0].tabIndex, 0);
+});
+test('Markdown preserves all six source heading levels for navigation, including repeated and nested headings', () => {
+  const source = '# Aynı\n\n## **Aynı**\n\n### Üç\n\n#### Dört\n\n##### Beş\n\n###### Altı\n\n> ## Alıntı başlığı\n\n```md\n## Başlık değil\n```';
+  const tree = app().markdown(source);
+  const headings = descendants(tree, 'h2').concat(descendants(tree, 'h3'), descendants(tree, 'h4'), descendants(tree, 'h5'), descendants(tree, 'h6'));
+  assert.equal(headings.length, 7);
+  assert.deepEqual(headings.map(h => h.attributes['data-level']).sort(), ['1', '2', '2', '3', '4', '5', '6']);
+  assert.equal(headings.filter(h => h.textContent === 'Aynı').length, 2);
+  assert.ok(!headings.some(h => h.textContent.includes('Başlık değil')));
 });
 test('ordered and unordered lists remain separate, nested lists retain hierarchy', () => {
   const tree = app().markdown('3. Üçüncü\n4. Dördüncü\n- Ana madde\n  - Alt madde\n- Son madde');

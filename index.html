@@ -44,6 +44,8 @@
     button:disabled { cursor: wait; }
     a, button { -webkit-tap-highlight-color: transparent; }
     :focus-visible { outline: 2px solid var(--focus); outline-offset: 4px; }
+    /* Programmatic reading/skip targets are not controls: don't frame the whole article. */
+    #main:focus, #rmain:focus, #rstate:focus, .body [tabindex="-1"]:focus { outline: none; }
     ::selection { background: #575045; color: #fff; }
     svg { width: 20px; height: 20px; flex: none; fill: currentColor; }
     .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -67,9 +69,9 @@
     .button:disabled { color: var(--muted); }
     .summary { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 24px; flex-wrap: wrap; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--control); font: 12px/1.7 var(--mono); color: var(--muted); }
     #count { margin: 0; color: var(--text); }
-    .day { display: grid; grid-template-columns: 150px minmax(0, 1fr); border-bottom: 1px solid var(--line); }
-    .day h2 { position: sticky; top: 24px; align-self: start; margin: 0; padding: 24px 20px 24px 0; font: 450 30px/1.25 var(--serif); letter-spacing: -.025em; color: var(--text); writing-mode: horizontal-tb; white-space: nowrap; }
-    .day h2.day-date { padding-top: 28px; font-size: 18px; letter-spacing: -.015em; color: var(--muted); }
+    .day { display: grid; grid-template-columns: 76px minmax(0, 1fr); border-bottom: 1px solid var(--line); }
+    .day h2 { position: sticky; top: 24px; align-self: start; justify-self: start; margin: 0; padding: 24px 18px 24px 0; font: 450 30px/1.25 var(--serif); letter-spacing: -.025em; color: var(--text); writing-mode: vertical-rl; text-orientation: mixed; white-space: nowrap; }
+    .day h2.day-date { font-size: 18px; letter-spacing: -.015em; color: var(--muted); }
     .rows { min-width: 0; margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--line); }
     .rows > li + li { border-top: 1px solid var(--line); }
     .row { display: grid; grid-template-columns: minmax(0, 1fr) 20px; column-gap: 24px; padding: 22px 24px; }
@@ -77,7 +79,7 @@
     .row:focus-visible { position: relative; outline-offset: -3px; }
     .row-main { min-width: 0; }
     .meta { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 16px; font: 12px/1.7 var(--mono); color: var(--muted); }
-    .agent { display: inline-flex; align-items: center; gap: 8px; color: #c8c5bd; overflow-wrap: anywhere; }
+    .agent { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; color: #c8c5bd; overflow-wrap: anywhere; }
     .agent::before { content: ""; width: 5px; height: 5px; flex: none; border-radius: 50%; border: 1px solid var(--control); }
     .unread .agent::before { background: var(--link); border-color: var(--link); }
     .when { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -86,7 +88,7 @@
     .row-arrow { align-self: center; color: var(--muted); }
     .row:hover .row-title { color: #f7f0e3; }
     .row:hover .row-arrow { color: var(--link); }
-    .more { margin-top: 24px; padding-left: 150px; display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
+    .more { margin-top: 24px; display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; }
     .more p { margin: 0; font: 11px/1.7 var(--mono); color: var(--muted); }
     .notice { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px; margin-top: 24px; background: var(--surface); border-left: 2px solid var(--error); border-radius: 0 4px 4px 0; font-size: 14px; color: var(--muted); }
     .notice p { margin: 0; }
@@ -95,14 +97,38 @@
     .state h2 { color: var(--text); font: 450 30px/1.25 var(--serif); margin: 0 0 12px; }
     .state p { margin: 0 0 16px; }
     .text-link { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--link); text-decoration: underline; text-underline-offset: 4px; }
-    .reader-bar { position: sticky; top: 0; z-index: 2; min-height: 68px; display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--bg); border-bottom: 1px solid var(--control); }
+    #read { --reader-offset: 68px; --section-gap: 72px; }
+    .reader-bar { position: sticky; top: 0; z-index: 3; min-height: var(--reader-offset); display: flex; align-items: center; justify-content: space-between; gap: 16px; background: var(--bg); border-bottom: 1px solid var(--control); }
     .back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-size: 13px; font-weight: 500; }
     .back:hover { text-decoration: underline; text-underline-offset: 4px; }
     .adjacent { display: flex; gap: 8px; }
     .adjacent a { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; min-height: 44px; padding: 8px 10px; border-radius: 4px; font-size: 12px; color: var(--muted); }
     .adjacent a[href]:hover { background: var(--hover); color: var(--text); }
     .adjacent [aria-disabled="true"] { color: #96938c; cursor: default; }
-    .reading { max-width: var(--reading); margin-inline: auto; padding-top: 36px; }
+    .reader-layout { position: relative; }
+    .reading { width: 100%; min-width: 0; max-width: var(--reading); margin-inline: auto; padding-top: 36px; }
+    .toc { position: sticky; top: var(--reader-offset); z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); }
+    .toc-title { display: none; }
+    .toc-toggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 0; border: 0; background: none; text-align: left; font: 500 13px/1.5 var(--sans); }
+    .toc-count { margin-left: auto; color: var(--muted); font: 10px/1.6 var(--mono); }
+    .toc-toggle svg { width: 16px; height: 16px; transform: rotate(90deg); }
+    .toc.is-open .toc-toggle svg { transform: rotate(-90deg); }
+    .toc-links { display: none; position: absolute; top: 100%; inset-inline: 0; padding: 8px 6px 12px; max-height: min(55vh, 420px); max-height: min(55dvh, 420px); overflow-y: auto; overscroll-behavior: contain; background: var(--bg); border-bottom: 1px solid var(--control); }
+    .toc.is-open .toc-links { display: block; }
+    .toc ol { margin: 0; padding: 0; list-style: none; }
+    .toc-item { display: block; width: 100%; min-height: 44px; padding: 10px 10px 10px calc(10px + var(--toc-level, 0) * 12px); border: 0; border-left: 1px solid var(--line); background: none; color: var(--muted); font: 400 13px/1.5 var(--sans); text-align: left; overflow-wrap: anywhere; }
+    .toc-item:hover { color: var(--text); background: var(--hover); }
+    .toc-item[aria-current] { color: var(--link); border-left: 2px solid var(--link); font-weight: 600; }
+    @media (min-width: 1280px) {
+      #read { --section-gap: 24px; }
+      .reader-layout { display: grid; grid-template-columns: minmax(0, 1fr) var(--reading) minmax(0, 1fr); gap: 24px; align-items: start; }
+      .reading { grid-column: 2; grid-row: 1; }
+      .toc { grid-column: 1; grid-row: 1; margin-top: 36px; padding-top: 4px; top: calc(var(--reader-offset) + 28px); border-bottom: 0; z-index: 1; min-width: 0; }
+      .toc-title { display: block; margin: 0 0 14px; color: var(--muted); font: 10px/1.6 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+      .toc-toggle { display: none; }
+      .toc .toc-links { display: block; position: static; padding: 4px 6px; margin-left: -6px; max-height: calc(100vh - 170px); max-height: calc(100dvh - 170px); border-bottom: 0; scrollbar-width: thin; }
+      .toc-item { min-height: 36px; padding-block: 8px; font-size: 12px; }
+    }
     .message-head { padding-bottom: 24px; margin-bottom: 30px; border-bottom: 1px solid var(--line); }
     .message-head .eyebrow { margin-bottom: 10px; }
     .message-head h1 { font-size: 38px; letter-spacing: -.025em; }
@@ -110,10 +136,13 @@
     .body { font: 400 22px/1.65 var(--serif); overflow-wrap: anywhere; }
     .body > :first-child { margin-top: 0; }
     .body p { margin: 0 0 1.1em; }
-    .body h2, .body h3, .body h4, .body h5, .body h6 { margin: 1.8em 0 .7em; font-family: var(--sans); font-weight: 600; line-height: 1.4; letter-spacing: -.025em; scroll-margin-top: 92px; }
-    .body h2 { font-size: 24px; }
-    .body h3 { font-size: 20px; }
-    .body h4, .body h5, .body h6 { font-size: 18px; }
+    .body h2, .body h3, .body h4, .body h5, .body h6 { margin: 2em 0 .65em; color: #f5f0e7; font-family: var(--sans); font-weight: 600; line-height: 1.3; letter-spacing: -.025em; scroll-margin-top: calc(var(--reader-offset) + var(--section-gap)); }
+    .body h2 { font-size: 28px; }
+    .body h3 { font-size: 24px; }
+    .body h4 { font-size: 21px; }
+    .body h5 { font-size: 19px; }
+    .body h6 { font-size: 18px; }
+    .body :is(h2, h3, h4, h5, h6) + :is(h2, h3, h4, h5, h6) { margin-top: 1em; }
     .body > h2:first-child { font: 450 34px/1.2 var(--serif); letter-spacing: -.025em; margin-bottom: .7em; }
     .body a { color: var(--link); text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
     .body a:hover { color: var(--text); }
@@ -145,11 +174,10 @@
     footer p { margin: 0; }
     @media (max-width: 760px) {
       .page { width: calc(100% - 48px); }
-      .day { grid-template-columns: 128px minmax(0, 1fr); }
+      .day { grid-template-columns: 60px minmax(0, 1fr); }
       .day h2 { font-size: 27px; padding-right: 12px; }
       .day h2.day-date { font-size: 16px; }
-      .row { padding: 20px; column-gap: 16px; }
-      .more { padding-left: 128px; }
+      .row { padding: 20px 16px; column-gap: 16px; }
     }
     @media (max-width: 540px) {
       .page { width: calc(100% - 40px); }
@@ -164,16 +192,17 @@
       .mast .button { margin-top: 27px; padding-inline: 11px; }
       .mast .button span { display: none; }
       .summary { align-items: flex-start; flex-direction: column; gap: 4px; padding-block: 12px; font-size: 11px; }
-      .day { display: block; }
-      .day h2 { position: static; padding: 20px 0 8px; font-size: 27px; }
-      .day h2.day-date { padding-top: 22px; font-size: 18px; }
+      .day { grid-template-columns: 40px minmax(0, 1fr); }
+      .day h2 { top: 20px; padding: 20px 8px 20px 0; font-size: 24px; }
+      .day h2.day-date { font-size: 14px; }
       .rows { border-left: 0; }
       .row { padding: 17px 0 20px; column-gap: 12px; }
       .row-title { font-size: 24px; }
       .meta { font-size: 11px; }
       .preview { font-size: 15px; -webkit-line-clamp: 3; line-clamp: 3; }
-      .more { padding-left: 0; gap: 12px; }
-      .reader-bar { min-height: 64px; gap: 8px; }
+      .more { gap: 12px; }
+      #read { --reader-offset: 64px; }
+      .reader-bar { gap: 8px; }
       .adjacent { gap: 0; }
       .adjacent .nav-label { display: none; }
       .reading { padding-top: 28px; }
@@ -182,7 +211,9 @@
       .message-meta { gap: 4px 16px; font-size: 11px; }
       .body { font-size: 21px; line-height: 1.65; }
       .body > h2:first-child { font-size: 30px; }
-      .body h2 { font-size: 22px; }
+      .body h2 { font-size: 26px; }
+      .body h3 { font-size: 23px; }
+      .body h4 { font-size: 21px; }
       .body pre { padding: 14px; font-size: 12px; }
       .fnav { gap: 20px; }
       .fnav small { font-size: 10px; }
@@ -190,8 +221,25 @@
       .notice { align-items: flex-start; flex-direction: column; }
       footer { margin-top: 32px; flex-direction: column; gap: 6px; }
     }
-    @media (prefers-reduced-motion: no-preference) {
-      .row, .button, .adjacent a { transition: background-color .12s ease, border-color .12s ease; }
+    /* Small surfaces only: keep the long article and sticky navigation stationary. */
+    @keyframes soft-enter {
+      from { opacity: 0; filter: blur(4px); transform: translateY(6px); }
+      to { opacity: 1; filter: none; transform: none; }
+    }
+    :root { --soft-out: cubic-bezier(0.165, 0.84, 0.44, 1); --weighted: cubic-bezier(0.22, 1, 0.36, 1); }
+    .row, .button, .adjacent a, .toc-toggle, .toc-item { transition: background-color 120ms var(--soft-out), border-color 120ms var(--soft-out), color 120ms var(--soft-out); }
+    .button, .adjacent a, .toc-toggle { transition-property: background-color, border-color, color, transform; }
+    .button:not(:disabled):active, .adjacent a[href]:active, .toc-toggle:active { transform: translateY(1px); }
+    .row-title { transition: color 120ms var(--soft-out); }
+    .row-arrow { transition: transform 120ms var(--soft-out), color 120ms var(--soft-out); }
+    .toc-toggle svg { transition: transform 180ms var(--soft-out), color 120ms var(--soft-out); }
+    .message-head { animation: soft-enter 240ms var(--weighted); }
+    #notice:not([hidden]), #rstate:not([hidden]) .state { animation: soft-enter 180ms var(--soft-out); }
+    @media (max-width: 1279px) {
+      .toc.is-open .toc-links { animation: soft-enter 180ms var(--soft-out); }
+    }
+    @media (hover: hover) {
+      .row:hover .row-arrow { transform: translateX(2px); }
     }
   </style>
 </head>
@@ -240,19 +288,29 @@
           </div>
         </nav>
         <div id="rstate" role="status" tabindex="-1" hidden></div>
-        <article id="rmain" class="reading" aria-labelledby="message-title" tabindex="-1" hidden>
-          <header class="message-head">
-            <p class="eyebrow">Ajan notu</p>
-            <h1 id="message-title"></h1>
-            <div id="message-meta" class="message-meta"></div>
-          </header>
-          <div class="body" id="body"></div>
-          <div class="message-source">
-            <a class="text-link" id="original" target="_blank" rel="noopener noreferrer">GitHub’da aç<span class="sr-only"> (yeni sekme)</span></a>
-            <a class="text-link" href="#/" data-inbox>Gelen kutusuna dön</a>
-          </div>
-          <nav class="fnav" id="fnav" aria-label="Diğer mesajlar"></nav>
-        </article>
+        <div class="reader-layout">
+          <aside id="toc" class="toc" aria-label="İçindekiler" hidden>
+            <p class="toc-title">İçindekiler</p>
+            <button id="toc-toggle" class="toc-toggle" type="button" aria-expanded="false" aria-controls="toc-links">
+              İçindekiler <span id="toc-count" class="toc-count"></span>
+              <svg viewBox="0 0 256 256" aria-hidden="true"><use href="assets/icons.svg#caret-right"/></svg>
+            </button>
+            <nav id="toc-links" class="toc-links" aria-label="Bu mesajdaki başlıklar"><ol id="toc-list"></ol></nav>
+          </aside>
+          <article id="rmain" class="reading" aria-labelledby="message-title" tabindex="-1" hidden>
+            <header class="message-head">
+              <p class="eyebrow">Ajan notu</p>
+              <h1 id="message-title"></h1>
+              <div id="message-meta" class="message-meta"></div>
+            </header>
+            <div class="body" id="body"></div>
+            <div class="message-source">
+              <a class="text-link" id="original" target="_blank" rel="noopener noreferrer">GitHub’da aç<span class="sr-only"> (yeni sekme)</span></a>
+              <a class="text-link" href="#/" data-inbox>Gelen kutusuna dön</a>
+            </div>
+            <nav class="fnav" id="fnav" aria-label="Diğer mesajlar"></nav>
+          </article>
+        </div>
       </section>
     </main>
     <footer>
@@ -411,6 +469,7 @@
         }
         if ((match = /^(#{1,6})\s+(.+)/.exec(line))) {
           const heading = el("h" + Math.min(match[1].length + 1, 6));
+          heading.setAttribute("data-level", String(match[1].length));
           inline(heading, match[2].replace(/\s+#+\s*$/, "")); fragment.append(heading); i++; continue;
         }
         if (/^\s*(?:---+|\*\*\*+|___+)\s*$/.test(line)) { fragment.append(el("hr")); i++; continue; }
@@ -459,6 +518,64 @@
         fragment.append(p);
       }
       return fragment;
+    }
+
+    let tocHeadings = [], tocItems = [], tocFrame = 0;
+    const wideReader = () => window.matchMedia("(min-width: 1280px)").matches;
+    function closeToc() {
+      $("#toc").classList.remove("is-open");
+      $("#toc-toggle").setAttribute("aria-expanded", "false");
+    }
+    function resetToc() {
+      closeToc(); $("#toc").hidden = true; $("#toc-list").replaceChildren();
+      tocHeadings = []; tocItems = [];
+    }
+    function buildToc(id) {
+      resetToc();
+      tocHeadings = [...$("#body").querySelectorAll("h2, h3, h4, h5, h6")];
+      if (!tocHeadings.length) return;
+      const baseLevel = Math.min(...tocHeadings.map(h => Number(h.getAttribute("data-level"))));
+      tocItems = tocHeadings.map((heading, index) => {
+        heading.id = `section-${id}-${index + 1}`; heading.tabIndex = -1;
+        const label = heading.cloneNode(true);
+        label.querySelectorAll(".sr-only").forEach(node => node.remove());
+        const button = el("button", "toc-item", label.textContent.trim() || "Başlıksız bölüm");
+        button.type = "button"; button.setAttribute("aria-controls", heading.id);
+        button.style.setProperty("--toc-level", String(Math.min(3, Number(heading.getAttribute("data-level")) - baseLevel)));
+        button.addEventListener("click", () => {
+          closeToc();
+          heading.focus({ preventScroll: true });
+          // This is an in-reader action, not a hash route or a new history entry.
+          heading.scrollIntoView({ block: "start", behavior: "smooth" });
+        });
+        const li = el("li"); li.append(button); $("#toc-list").append(li);
+        return button;
+      });
+      $("#toc-count").textContent = `${tocHeadings.length} başlık`;
+      $("#toc").hidden = false;
+      queueTocUpdate();
+    }
+    function updateToc() {
+      if (!tocHeadings.length || $("#read").hidden) return;
+      const barBottom = $(".reader-bar").getBoundingClientRect().bottom;
+      // Share the CSS scroll offset so jumps and manual scrolling select the same section.
+      const offset = Math.max(barBottom, parseFloat(getComputedStyle(tocHeadings[0]).scrollMarginTop)) + 2;
+      let current = 0;
+      tocHeadings.forEach((heading, index) => { if (heading.getBoundingClientRect().top <= offset) current = index; });
+      tocItems.forEach((item, index) => {
+        if (index === current) item.setAttribute("aria-current", "location");
+        else item.removeAttribute("aria-current");
+      });
+      const nav = $("#toc-links"), item = tocItems[current];
+      // Keep the active entry visible without moving the document or a keyboard user's focus.
+      if ((wideReader() || $("#toc").classList.contains("is-open")) && !nav.contains(document.activeElement)) {
+        const bounds = nav.getBoundingClientRect(), target = item.getBoundingClientRect();
+        if (target.top < bounds.top || target.bottom > bounds.bottom) nav.scrollTop += target.top - bounds.top - nav.clientHeight / 2 + target.height / 2;
+      }
+    }
+    function queueTocUpdate() {
+      if (tocFrame) return;
+      tocFrame = requestAnimationFrame(() => { tocFrame = 0; updateToc(); });
     }
 
     function row(message) {
@@ -536,6 +653,7 @@
     function renderReader(id, focus = false) {
       const message = items.find(m => String(m.id) === id) || linked.get(id);
       if (!message) {
+        resetToc();
         $("#rmain").hidden = true; $("#rstate").hidden = false;
         setNav($("#newer")); setNav($("#older"));
         const error = linkErrors.get(id);
@@ -571,6 +689,7 @@
         const words = message.text.split(/\s+/).filter(Boolean).length;
         if (words > 120) $("#message-meta").append(el("span", "", `Yaklaşık ${Math.max(1, Math.ceil(words / 200))} dk okuma`));
         $("#body").replaceChildren(markdown(message.text || "(Boş mesaj)"));
+        buildToc(message.id);
         $("#original").href = `${SOURCE}#issuecomment-${message.id}`;
         readerSignature = signature;
       }
@@ -590,6 +709,7 @@
       } else {
         const returning = view === "read";
         $("#read").hidden = true; $("#home").hidden = false;
+        resetToc();
         renderList(); document.title = "Agent Inbox — Arda YILDIZ";
         view = "home"; activeId = null; fromHome = false;
         if (returning) {
@@ -617,7 +737,9 @@
     // Escape is discoverable through the standard back link; single-letter shortcuts are deliberately avoided.
     document.addEventListener("keydown", event => {
       if (view !== "read" || event.key !== "Escape" || event.metaKey || event.ctrlKey || event.altKey || event.target.closest("input, textarea, select, [contenteditable]")) return;
-      event.preventDefault(); $("#back").click();
+      event.preventDefault();
+      if (!wideReader() && $("#toc").classList.contains("is-open")) { closeToc(); $("#toc-toggle").focus(); }
+      else $("#back").click();
     });
     function showNotice(message) {
       $("#notice").hidden = !message; $("#notice-text").textContent = message;
@@ -671,6 +793,15 @@
         }
       }
     }
+    $("#toc-toggle").addEventListener("click", () => {
+      const open = $("#toc").classList.toggle("is-open");
+      $("#toc-toggle").setAttribute("aria-expanded", String(open));
+      if (open) queueTocUpdate();
+    });
+    document.addEventListener("click", event => { if (!event.target.closest("#toc")) closeToc(); });
+    window.addEventListener("scroll", queueTocUpdate, { passive: true });
+    window.addEventListener("resize", () => { closeToc(); queueTocUpdate(); });
+    document.fonts.ready.then(queueTocUpdate);
     $("#year").textContent = new Date().getFullYear();
     $("#refresh").addEventListener("click", load);
     $("#retry").addEventListener("click", load);
